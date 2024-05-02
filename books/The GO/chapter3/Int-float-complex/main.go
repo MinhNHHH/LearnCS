@@ -2,9 +2,15 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"io"
 	"log"
 	"math"
+	"math/cmplx"
 	"net/http"
+	"strconv"
 )
 
 // just hold positive value.
@@ -34,12 +40,17 @@ var sin30, cos30 = math.Sin(angle), math.Cos(angle) // sin(30°), cos(30°)
 
 func main() {
 	http.HandleFunc("/", handler)
+	http.HandleFunc("/mandbrot", drawMandbrot)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Write([]byte(genGraph()))
+}
+
+func drawMandbrot(w http.ResponseWriter, r *http.Request) {
+	mainMandbrot(w, r)
 }
 
 func genGraph() string {
@@ -66,7 +77,7 @@ func validateInf(x float64) bool {
 	return math.IsNaN(x) && !math.IsInf(x, 0)
 }
 
-func corner(i, j int) (float64, float64, float64) {
+func corner(i, j int) (float64, float64) {
 	// Find point (x,y) at corner of cell (i,j).
 	x := xyrange * (float64(i)/cells - 0.5)
 	y := xyrange * (float64(j)/cells - 0.5)
@@ -76,7 +87,7 @@ func corner(i, j int) (float64, float64, float64) {
 	// Project (x,y,z) isometrically onto 2-D SVG canvas (sx,sy).
 	sx := width/2 + (x-y)*cos30*xyscale
 	sy := height/2 + (x+y)*sin30*xyscale - z*zscale
-	return sx, sy, z
+	return sx, sy
 }
 
 func f(x, y float64) float64 {
@@ -84,4 +95,63 @@ func f(x, y float64) float64 {
 	return math.Sin(r) / r
 }
 
-func color(z)
+func mainMandbrot(out io.Writer, r *http.Request) {
+	params := r.URL.Query()
+	// const (
+	// 	xmin, ymin, xmax, ymax = -2, -2, +2, +2
+	// 	width, height          = 1024, 1024
+	// )
+	xmin, _ := strconv.ParseFloat(params.Get("xmin"), 64)
+	ymin, _ := strconv.ParseFloat(params.Get("ymin"), 64)
+	xmax, _ := strconv.ParseFloat(params.Get("xmax"), 64)
+	ymax, _ := strconv.ParseFloat(params.Get("ymax"), 64)
+	width, _ := strconv.Atoi(params.Get("width"))
+	height, _ := strconv.Atoi(params.Get("height"))
+
+	if xmin == 0 {
+		xmin = -2
+	}
+	if ymin == 0 {
+		ymin = -2
+	}
+	if xmax == 0 {
+		xmax = 2
+	}
+	if ymax == 0 {
+		ymax = 2
+	}
+	if width == 0 {
+		width = 1024
+	}
+	if height == 0 {
+		height = 1024
+	}
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for py := 0; py < height; py++ {
+		y := float64(py)/float64(height)*(ymax-ymin) + ymin
+		for px := 0; px < width; px++ {
+			x := float64(px)/float64(width)*(xmax-xmin) + xmin
+			z := complex(x, y)
+			// Image point (px, py) represents complex value z.
+			img.Set(px, py, mandelbrot(z))
+		}
+	}
+	png.Encode(out, img) // NOTE: ignoring errors
+}
+
+func mandelbrot(z complex128) color.Color {
+	const iterations = 200
+	const contrast = 15
+	var v complex128
+	for n := uint8(0); n < iterations; n++ {
+		v = v*v + z
+		if cmplx.Abs(v) > 2 {
+			return color.Gray{255 - contrast*n}
+		}
+	}
+	return color.Black
+}
+
+func lerp(v0, v1, t uint8) uint8 {
+	return v0 + t*(v1-v0)
+}
