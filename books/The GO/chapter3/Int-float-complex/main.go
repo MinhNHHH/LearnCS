@@ -55,7 +55,7 @@ func drawMandbrot(w http.ResponseWriter, r *http.Request) {
 
 func genGraph() string {
 	s := fmt.Sprintf("<svg xmlns='http://www.w3.org/2000/svg' "+
-		"style='stroke: grey; fill: white; stroke-width: 0.7' "+
+		"style='stroke: red; fill: blue; stroke-width: 0.7' "+
 		"width='%d' height='%d'>", width, height)
 	for i := 0; i < cells; i++ {
 		for j := 0; j < cells; j++ {
