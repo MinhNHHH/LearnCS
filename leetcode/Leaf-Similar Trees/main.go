@@ -53,11 +53,11 @@ func (root *TreeNode) Inorder() {
 
 func main() {
 	// Initializing a binary tree with root node value 5
-	root := NewTreeNode(5)
+	root := NewTreeNode(10)
+	root.Insert(5)
+	root.Insert(-3)
 	root.Insert(3)
-	root.Insert(7)
 	root.Insert(2)
-	root.Insert(4)
 	root.Insert(6)
 	root.Insert(8)
 
