@@ -16,25 +16,23 @@
 // To take course 1 you should have finished course 0, and to take course 0 you should also have finished course 1. So it is impossible.
 package main
 
-import "fmt"
-
 func main() {
 	canFinish(2, [][]int{{1, 0}, {0, 1}})
 }
 
 func canFinish(numCourses int, prerequisites [][]int) bool {
-	visited := make([]bool, numCourses)
+	// visited := make([]bool, numCourses)
 
-	var dfs func(stack []int)
-	dfs = func(stack []int) {
-		if !visited[stack[len(stack)-1]] {
-			visited[stack[len(stack)-1]] = true
-		}
-	}
+	// var dfs func(stack []int)
+	// dfs = func(stack []int) {
+	// 	if !visited[stack[len(stack)-1]] {
+	// 		visited[stack[len(stack)-1]] = true
+	// 	}
+	// }
 
-	for _, pre := range prerequisites {
-		dfs(pre)
-	}
-	fmt.Println(visited)
+	// for _, pre := range prerequisites {
+	// 	dfs(pre)
+	// }
+	// fmt.Println(visited)
 	return false
 }

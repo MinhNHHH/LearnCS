@@ -15,10 +15,10 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println(subsets([]int{1, 2, 3}))
+	fmt.Println(subSetsBFS([]int{1, 2, 3}))
 }
 
-func subsets(nums []int) [][]int {
+func subsetsDFS(nums []int) [][]int {
 	res := [][]int{}
 	var dfs func(start int, path []int)
 
@@ -41,5 +41,39 @@ func subsets(nums []int) [][]int {
 
 	// Start the DFS with an empty path
 	dfs(0, []int{})
+	return res
+}
+
+// Helper function to find the index of an element in nums
+func indexOf(nums []int, target int) int {
+	for i, num := range nums {
+		if num == target {
+			return i
+		}
+	}
+	return -1
+}
+
+func subSetsBFS(nums []int) [][]int {
+	res := [][]int{}
+	queue := [][]int{{}}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		res = append(res, current)
+		start := 0
+		if len(current) > 0 {
+			start = indexOf(nums, current[len(current)-1]) + 1
+		}
+
+		for i := start; i < len(nums); i++ {
+			newSubset := append([]int{}, current...)
+			newSubset = append(newSubset, nums[i])
+			queue = append(queue, newSubset)
+		}
+		fmt.Println(queue)
+	}
 	return res
 }
