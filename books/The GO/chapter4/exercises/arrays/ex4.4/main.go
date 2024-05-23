@@ -1,29 +1,17 @@
 package main
 
-func main() {}
+import "fmt"
 
-func rotateRight(s []int, k int) []int {
-	n := len(s)
-	if n == 0 || k%n == 0 {
-		return s
-	}
-	k = k % n // In case k is larger than the length of the array
+func rotate_ints(ints []int) {
+	last := ints[len(ints)-1]
+	first := ints[0]
+	copy(ints, ints[:len(ints)-1])
+	ints[0] = last
+	ints[len(ints)-1] = first
+}
 
-	// Create a new slice to store the rotated elements
-	rotated := make([]int, n)
-
-	// Copy the last k elements to the beginning of the new slice
-	for i := 0; i < k; i++ {
-		rotated[i] = s[n-k+i]
-	}
-
-	// Copy the first n-k elements to the end of the new slice
-	for i := 0; i < n-k; i++ {
-		rotated[k+i] = s[i]
-	}
-
-	// Copy the rotated elements back to the original slice
-	copy(s, rotated)
-
-	return s
+func main() {
+	s := []int{1, 2, 3, 4, 5}
+	rotate_ints(s)
+	fmt.Println(s)
 }
