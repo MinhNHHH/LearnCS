@@ -6,26 +6,24 @@ import (
 )
 
 func main() {
-	fmt.Println(squashSpace("Hello,     世界!  This    is a    test."))
+	fmt.Println(squashSpace([]byte("Hello,     世界!  This    is a    test.")))
 }
 
-func squashSpace(s string) string {
-	runes := []rune(s)
-	res := []rune{}
-	index := 0
-	subRune := []rune{}
-	for index < len(runes) {
-		if !unicode.IsSpace(runes[index]) {
-			subRune = append(subRune, runes[index])
-		} else {
-			if len(subRune) > 0 {
-				subRune = append(subRune, 32)
-				res = append(res, subRune...)
+func squashSpace(s []byte) []byte {
+	n := 0
+	spaceFound := false
+	for i := 0; i < len(s); i++ {
+		if unicode.IsSpace(rune(s[i])) {
+			if !spaceFound {
+				s[n] = ' '
+				n++
+				spaceFound = true
 			}
-			subRune = []rune{}
+		} else {
+			s[n] = s[i]
+			n++
+			spaceFound = false
 		}
-		index++
 	}
-	res = append(res, subRune...)
-	return string(res)
+	return s[:n] // Reslice to the new length
 }
