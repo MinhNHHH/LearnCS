@@ -49,8 +49,8 @@
 + Example:
 	```go
 	type Person struct {
-    Name string
-    Age  int
+		Name string
+		Age  int
 	}
 
 	func main() {
@@ -67,3 +67,107 @@
 	+ Concise Syntax: Struct literals allow you to create and initialize structs in a single expression.
 	+ Flexibility: you can initialize only specific fields while leaving others with their zero values.
 + Zero Values: If you don't specific a value for a field in a struct literal, it will be initialized with its zero value. (e.g.. 0 for numeric types, empty string for strings, nil for pointer)
+
+## 4.4.2 Comparing Structs.
++ If all the fields of a struct are comparable, the struct itself is comparable, so two expressions of that type may be compared using `==` or `!=`.
++ The `==` operation compares the corresponding fields of the two structs in order, so two printed expressions below are equivalent:
+  ```go
+	type Point struct{ X, Y int }
+     p := Point{1, 2}
+     q := Point{2, 1}
+     fmt.Println(p.X == q.X && p.Y == q.Y) // "false"
+     fmt.Println(p == q)                   // "false"
+	```
+
+## 4.4.3 Struct Embedding and Anonymous Fields
+### Struct Embedding
++ Struct embedding allows one struct type to be embedded within another struct type.
++ This is a form of composition and can be thought of as a way to inherit the fields and methods of the embedded struct.
+```go
+	type Person struct {
+		Name string
+		Age int
+	}
+
+	type Employee struct {
+		Person
+		ID int
+		Position string
+	}
+
+	func main() {
+		e := Employee {
+			Person : Person {
+				Name : "John",
+				Age: 25,
+			},
+			ID: 1,
+			Position: "Software Engineer",
+		}
+	}
+```
+
+### AnonymousFields
++ Anonnymous fields are fields in a struct withou a name, which can only be other struct types or interfaces.
++ Similar with Embeding Struct. Anonymous Fields allows direct access to the fields and methods of the anonymous fields. 
+```go
+	type Address struct {
+			City, State string
+	}
+
+	type Contact struct {
+			Name    string
+			Address // Anonymous field
+	}
+
+	func main() {
+			c := Contact{
+					Name: "Alice",
+					Address: Address{
+							City:  "Wonderland",
+							State: "Dreamland",
+					},
+			}
+			
+			// Accessing fields of the anonymous struct directly
+			fmt.Println(c.Name)  // Output: Alice
+			fmt.Println(c.City)  // Output: Wonderland
+			fmt.Println(c.State) // Output: Dreamland
+	}
+```
+
+### Methods on Embedded Types
++ If the embedded struct has methods, those methods are also promoted to the embedding struct.
+
+```go
+	type Animal struct {
+		Name string
+	}
+
+	func (a Animal) Speak() {
+		fmt.Println(a.name, "says hello")
+	}
+
+	type Dog struct {
+		Animal
+		Breed string
+	}
+
+	func main() {
+		d := Dog{
+			Animal: Animal {
+				Name: "Buddy",
+			},
+			Breed: "Golden Retriever",
+		}
+	}
+
+	d.Speak() // Output: Buddy says hello
+```
+
+```
+	- Struct Embedding and anonymous fields in Go provide a way to create flexible and reusable code.
+	- By embedding structs, you can inherit fields and methods, and with anonymous fields, you can simplify access to those fields and methods, promoting clean and concise code.
+```
+
+# 4.5 JSON
