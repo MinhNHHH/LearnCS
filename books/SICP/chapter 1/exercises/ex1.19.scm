@@ -23,6 +23,7 @@
 ; p′= p2 + q2
 ; q′= pq + 2q2
 
+
 (define (sum-two-square a b)
 	(+ (square a) (square b)))
 
