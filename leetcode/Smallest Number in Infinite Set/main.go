@@ -32,14 +32,23 @@ func main() {
 
 type SmallestInfiniteSet struct {
 	array []int
+	added map[int]bool
 }
 
 func Constructor() SmallestInfiniteSet {
-	return SmallestInfiniteSet{}
+	arr := []int{}
+	for i := 1; i <= 1000; i++ {
+		arr = append(arr, i)
+	}
+	return SmallestInfiniteSet{
+		array: arr,
+		added: map[int]bool{},
+	}
 }
 
 func (this *SmallestInfiniteSet) PopSmallest() int {
 	smallest := this.array[0]
+	this.added[smallest] = false
 	temp := this.array[len(this.array)-1]
 	this.array[0] = temp
 	this.array = this.array[:len(this.array)-1]
@@ -47,23 +56,14 @@ func (this *SmallestInfiniteSet) PopSmallest() int {
 	return smallest
 }
 
-func isExist(nums []int, num int) bool {
-	for _, value := range nums {
-		if num == value {
-			return true
-		}
-	}
-	return false
-}
-
 func (this *SmallestInfiniteSet) AddBack(num int) {
 	if num == 0 {
 		return
 	}
-	if !isExist(this.array, num) {
+	if !this.added[num] {
 		this.array = append(this.array, num)
+		this.added[num] = true
 	}
-	this.AddBack(num - 1)
 	this.heapifyUp(len(this.array) - 1)
 }
 
@@ -83,11 +83,11 @@ func (this *SmallestInfiniteSet) heapifyDown(index int) {
 		leftChildIndex := index*2 + 1
 		rightChildIndex := index*2 + 2
 		smallestIndex := index
-		if leftChildIndex >= len(this.array) && this.array[smallestIndex] > this.array[leftChildIndex] {
+		if leftChildIndex < len(this.array) && this.array[smallestIndex] > this.array[leftChildIndex] {
 			smallestIndex = leftChildIndex
 		}
 
-		if rightChildIndex >= len(this.array) && this.array[smallestIndex] > this.array[rightChildIndex] {
+		if rightChildIndex < len(this.array) && this.array[smallestIndex] > this.array[rightChildIndex] {
 			smallestIndex = rightChildIndex
 		}
 

@@ -7,6 +7,7 @@ import (
 // MinHeap represents a min heap data structure
 type MinHeap struct {
 	array []int
+	added map[int]bool
 }
 
 // NewMinHeap creates a new instance of MinHeap
