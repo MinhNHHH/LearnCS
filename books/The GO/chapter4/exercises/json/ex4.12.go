@@ -13,28 +13,34 @@ import (
 	"sync"
 )
 
-const xkcdURL = "https://xkcd.com"
-const filePath = "comics/store.json"
+const (
+	xkcdURL  = "https://xkcd.com"
+	filePath = "comics/store.json"
+)
 
+// XKCDSearchResult represents a single comic's metadata
 type XKCDSearchResult struct {
-	Month      string
-	Num        int
-	Link       string
-	Year       string
-	News       string
-	Transcript string
-	Alt        string
-	Img        string
-	Title      string
-	Day        string
+	Month      string `json:"month"`
+	Num        int    `json:"num"`
+	Link       string `json:"link"`
+	Year       string `json:"year"`
+	News       string `json:"news"`
+	Transcript string `json:"transcript"`
+	Alt        string `json:"alt"`
+	Img        string `json:"img"`
+	Title      string `json:"title"`
+	Day        string `json:"day"`
 }
+
 type Comic int
 
+// Index represents an index of terms to comics
 type Index struct {
 	Index map[string]map[Comic]bool
 	mu    sync.RWMutex
 }
 
+// ComicIndex holds the complete index and the comics data
 type ComicIndex struct {
 	Index  map[string]map[Comic]bool
 	Comics map[int]XKCDSearchResult
@@ -43,118 +49,77 @@ type ComicIndex struct {
 func main() {
 	var fetch string
 	var search string
-	flag.StringVar(&fetch, "fetch", "", "Fetch comics base on ids")
+	flag.StringVar(&fetch, "fetch", "", "Fetch comics based on ids")
 	flag.StringVar(&search, "search", "", "Search string")
 	flag.Parse()
 
 	if fetch != "" {
 		terms := strings.Split(fetch, ",")
-		comics, total := Fetch(terms)
+		comics, total := fetchComics(terms)
 
-		index := NewIndex()
-		index.BuildIndex(comics)
+		index := newIndex()
+		index.buildIndex(comics)
 
-		StoreComics(ComicIndex{Index: index.Index, Comics: comics})
-		fmt.Printf("Total fetch is %d\n", total)
-	} else if search != "" {
-		comics, err := loadComics("comics/store.json")
+		err := storeComics(ComicIndex{Index: index.Index, Comics: comics})
 		if err != nil {
 			log.Fatal(err)
 		}
-		Search(search, *comics)
+		fmt.Printf("Total fetch is %d\n", total)
+	} else if search != "" {
+		comics, err := loadComics(filePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		searchComics(search, *comics)
 	}
 }
 
-// NewIndex initializes a new Index.
-func NewIndex() *Index {
+// newIndex initializes a new Index.
+func newIndex() *Index {
 	return &Index{
 		Index: make(map[string]map[Comic]bool),
 	}
 }
 
-// Tokenize splits a document into terms.
-func Tokenize(content string) []string {
+// tokenize splits a document into terms.
+func tokenize(content string) []string {
 	return strings.Fields(content)
 }
 
-// CleanContent removes non-alphanumeric characters from the content.
-func CleanContent(content string) string {
+// cleanContent removes non-alphanumeric characters from the content.
+func cleanContent(content string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9\s]+`)
-	cleanedContent := re.ReplaceAllString(strings.Trim(content, ""), "")
-	return cleanedContent
+	return re.ReplaceAllString(strings.TrimSpace(content), "")
 }
 
-// BuildIndex builds the index from the provided comics.
-func (idx *Index) BuildIndex(comics map[int]XKCDSearchResult) {
+// buildIndex builds the index from the provided comics.
+func (idx *Index) buildIndex(comics map[int]XKCDSearchResult) {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
 	for _, comic := range comics {
-		idx.AddDocument(comic)
-	}
-}
-
-func (idx *Index) AddDocument(doc XKCDSearchResult) {
-	tokens := Tokenize(doc.Transcript)
-	for _, token := range tokens {
-		normalizedToken := Normalize(token)
-		if _, found := idx.Index[normalizedToken]; !found {
-			idx.Index[normalizedToken] = map[Comic]bool{}
+		cleanedContent := cleanContent(comic.Transcript)
+		terms := tokenize(cleanedContent)
+		for _, term := range terms {
+			normalizedTerm := strings.ToLower(term)
+			if idx.Index[normalizedTerm] == nil {
+				idx.Index[normalizedTerm] = make(map[Comic]bool)
+			}
+			idx.Index[normalizedTerm][Comic(comic.Num)] = true
 		}
-		idx.Index[normalizedToken][Comic(doc.Num)] = true
 	}
 }
 
-// Normalize converts a token to lowercase.
-func Normalize(token string) string {
-	return strings.ToLower(CleanContent(token))
-}
-
-func SearchComic(comicNum string) (*XKCDSearchResult, error) {
-	url := strings.Join([]string{xkcdURL, comicNum, "info.0.json"}, "/")
-	resp, err := http.Get(url)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("search query failed: %s", resp.Status)
-	}
-
-	var result XKCDSearchResult
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		resp.Body.Close()
-		return nil, err
-	}
-	resp.Body.Close()
-
-	return &result, nil
-}
-
-func loadComics(filename string) (*ComicIndex, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var comics *ComicIndex
-	if err := json.Unmarshal(data, &comics); err != nil {
-		return nil, err
-	}
-
-	return comics, nil
-}
-
-func StoreComics(data ComicIndex) {
+// storeComics saves the comics data and index to a JSON file.
+func storeComics(data ComicIndex) error {
 	var comicsIndex ComicIndex
-	// Check if the file exists and load existing data if it does
+
 	if _, err := os.Stat(filePath); err == nil {
-		if comics, err := loadComics(filePath); err == nil {
-			comicsIndex = *comics
-		} else {
+		comics, err := loadComics(filePath)
+		if err != nil {
 			log.Printf("Failed to load existing comics: %v\n", err)
 			comicsIndex = data
+		} else {
+			comicsIndex = *comics
 		}
 	} else {
 		comicsIndex = data
@@ -176,36 +141,38 @@ func StoreComics(data ComicIndex) {
 		}
 	}
 
-	jsonData, jsonErr := json.MarshalIndent(comicsIndex, "", " ")
-	if jsonErr != nil {
-		log.Fatalf("Failed to marshal JSON: %v\n", jsonErr)
+	jsonData, err := json.MarshalIndent(comicsIndex, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %v", err)
 	}
 
-	dirName := "comics"
-	err := os.MkdirAll(dirName, os.ModePerm)
+	err = os.MkdirAll("comics", os.ModePerm)
 	if err != nil {
-		log.Fatalf("Failed to create directory: %v", err)
+		return fmt.Errorf("failed to create directory: %v", err)
 	}
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		log.Fatalf("Failed to create file: %v", err)
+		return fmt.Errorf("failed to create file: %v", err)
 	}
 	defer file.Close()
 
 	_, err = file.Write(jsonData)
 	if err != nil {
-		log.Fatalf("Failed to write to file: %v", err)
+		return fmt.Errorf("failed to write to file: %v", err)
 	}
+
+	return nil
 }
 
-func Fetch(terms []string) (map[int]XKCDSearchResult, int) {
+// fetchComics fetches comics based on the given terms.
+func fetchComics(terms []string) (map[int]XKCDSearchResult, int) {
 	total := 0
-	comics := map[int]XKCDSearchResult{}
-	for _, comic := range terms {
-		data, err := SearchComic(comic)
+	comics := make(map[int]XKCDSearchResult)
+	for _, term := range terms {
+		data, err := searchComic(term)
 		if err != nil {
-			log.Fatalf("Failed to fetch data from comic %s", comic)
+			log.Fatalf("Failed to fetch data for comic %s: %v", term, err)
 		}
 		comics[data.Num] = *data
 		total++
@@ -213,16 +180,55 @@ func Fetch(terms []string) (map[int]XKCDSearchResult, int) {
 	return comics, total
 }
 
-func Search(term string, comicIndex ComicIndex) {
-	normalizedTerm := Normalize(term)
+// searchComics searches for the given term in the comics index.
+func searchComics(term string, comicIndex ComicIndex) {
+	normalizedTerm := strings.ToLower(term)
 	docPositions, found := comicIndex.Index[normalizedTerm]
 	if !found {
 		return
 	}
 	for docID := range docPositions {
-
-		fmt.Printf("URL: https://xkcd.com/%d/\n", comicIndex.Comics[int(docID)].Num)
-		fmt.Printf("Transcript: %s\n\n", comicIndex.Comics[int(docID)].Transcript)
+		comic := comicIndex.Comics[int(docID)]
+		fmt.Printf("URL: %s/%d/\n", xkcdURL, comic.Num)
+		fmt.Printf("Transcript: %s\n\n", comic.Transcript)
 		fmt.Println("==========================================")
 	}
+}
+
+// searchComic fetches a comic by its ID.
+func searchComic(id string) (*XKCDSearchResult, error) {
+	url := fmt.Sprintf("%s/%s/info.0.json", xkcdURL, id)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch comic: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch comic: received status code %d", resp.StatusCode)
+	}
+
+	var result XKCDSearchResult
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode comic JSON: %v", err)
+	}
+
+	return &result, nil
+}
+
+// loadComics loads comics from a JSON file.
+func loadComics(path string) (*ComicIndex, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	var comicsIndex ComicIndex
+	err = json.Unmarshal(data, &comicsIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %v", err)
+	}
+
+	return &comicsIndex, nil
 }

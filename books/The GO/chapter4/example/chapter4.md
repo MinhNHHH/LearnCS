@@ -314,3 +314,5 @@ func main() {
 	fmt.Printf("%+v\n", data)
 }
 ```
+
+# 4.6. Text and HTML Templates.
