@@ -88,3 +88,38 @@ type error interface {
 				// Handle error
 		}
 	```
+## 5.5 Function Values
+- In go, functions are treated as first-class citizens, meaning they can be assigned to variables, passed around as arguments, and even returned from other functions.
+
+1. Functions as Value:
+  - Go allows you to assign a function to a variable. This variable then holds the functions value,.
+2. Passing Functions As Arguments:
+  - You can pass functions as arguments to other functions. This enables you to create functions that operate on other functions, providing more generic and higher-order programming capabilities.
+3. Returning Functions from Functions:
+  - In go, functions can also return functions. This allows you to create functions that generate or return other functions based on certain critera.
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+func add(x, y int) int {
+	return x + y
+}
+
+func compute(fn func(int, int) int, a, b int) int {
+	return fn(a, b)
+}
+
+func main() {
+	// Assign function add to variable 'operation'
+	operation := add
+
+	// Pass 'operation' function as argument to 'compute'
+	result := compute(operation, 5, 3)
+	fmt.Println(result) // Output: 8
+}
+
+```
