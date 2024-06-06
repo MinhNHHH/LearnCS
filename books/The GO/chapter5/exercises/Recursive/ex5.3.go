@@ -20,25 +20,25 @@ func PrintContent(filePath string) {
 		os.Exit(1)
 	}
 
-	contents := traverseLinkC([]string{}, doc)
-	for _, content := range contents {
-		fmt.Println(content)
-	}
+	printTextNodes(doc)
 }
 
-func traverseLinkC(contents []string, n *html.Node) []string {
+func printTextNodes(n *html.Node) {
 	if n == nil {
-		return contents
+		return
 	}
-	fmt.Println(n.Data == "script" || n.Data == "style")
-	if n.Type == html.ElementNode && (n.Data != "script" || n.Data != "style") {
-		for _, c := range n.Attr {
-			contents = append(contents, c.Val)
-		}
+
+	// If the node is a text node, print its content
+	if n.Type == html.TextNode {
+		fmt.Println(n.Data)
+	}
+
+	// If the node is a script or style element, do not traverse its children
+	if n.Type == html.ElementNode && (n.Data == "script" || n.Data == "style") {
+		return
 	}
 
 	// Recursively traverse the first child and then the next sibling
-	contents = traverseLinkC(contents, n.FirstChild)
-	contents = traverseLinkC(contents, n.NextSibling)
-	return contents
+	printTextNodes(n.FirstChild)
+	printTextNodes(n.NextSibling)
 }

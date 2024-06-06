@@ -1,9 +1,9 @@
 package main
 
 import (
-	recursive "chapter5/exercises/Recursive"
+	multiple "chapter5/exercises/multiple"
 )
 
 func main() {
-	recursive.PrintContent("mock-data/draft.html")
+	multiple.CountWordsAndImages("https://golang.org")
 }

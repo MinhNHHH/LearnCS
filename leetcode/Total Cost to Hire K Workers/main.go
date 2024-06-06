@@ -33,9 +33,9 @@ import (
 )
 
 func main() {
-	fmt.Println(totalCost([]int{1, 2, 4, 1}, 3, 3))
-	fmt.Println(totalCost([]int{17, 12, 10, 2, 7, 2, 11, 20, 8}, 3, 4))
-	fmt.Println(totalCost([]int{31, 25, 72, 79, 74, 65, 84, 91, 18, 59, 27, 9, 81, 33, 17, 58}, 11, 2))
+	// fmt.Println(totalCost([]int{1, 2, 4, 1}, 3, 3))
+	// fmt.Println(totalCost([]int{17, 12, 10, 2, 7, 2, 11, 20, 8}, 3, 4))
+	fmt.Println(totalCost([]int{2, 2, 2, 2, 2, 2, 1, 4, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, 7, 3))
 }
 
 // fmt.Println(totalCost([]int{31, 25, 72, 79, 74, 65, 84, 91, 18, 59, 27, 9, 81, 33, 17, 58}, 11, 2)) 0
@@ -49,72 +49,62 @@ func main() {
 // fmt.Println(totalCost([]int{72, 79, 74, 65, 84, 91, 81}, 11, 2)) 8
 // fmt.Println(totalCost([]int{79, 74, 65, 84, 91, 81}, 11, 2)) 9
 // fmt.Println(totalCost([]int{79, 65, 84, 91, 81}, 11, 2)) 10
-func min(a, b int) int {
+func max(a, b int) int {
 	if a < b {
-		return a
+		return b
 	}
-	return b
+	return a
 }
+
 func totalCost(costs []int, k int, candidates int) int64 {
-	n := len(costs)
 	totalCost := int64(0)
 
-	startHeap := NewMinHeap()
-	endHeap := NewMinHeap()
+	heap := NewMinHeap()
 
-	// Add initial candidates to heaps
-	for i := 0; i < candidates && i < n; i++ {
-		startHeap.Insert(costs[i])
+	for i := 0; i < candidates; i++ {
+		heap.Insert([]int{costs[i], 0})
 	}
-	for i := 0; i < candidates && n-1-i >= 0; i++ {
-		endHeap.Insert(costs[n-1-i])
+	for i := len(costs) - candidates; i < len(costs); i++ {
+		heap.Insert([]int{costs[i], 1})
 	}
+	fmt.Println(heap)
+	left := candidates
+	right := len(costs) - candidates - 1
 
-	for k > 0 {
-		var minCost int
-		if startHeap.array[0] < endHeap.array[0] {
-			minCost = startHeap.popSmallest()
-		} else {
-			minCost = endHeap.popSmallest()
-		}
-		totalCost += int64(minCost)
-
-		// Add new candidates to the heaps if possible
-		if len(startHeap.array) < candidates && len(startHeap.array)+len(endHeap.array) < n {
-			nextIndex := len(startHeap.array)
-			if nextIndex < n {
-				startHeap.Insert(costs[nextIndex])
+	for i := 0; i < k; i++ {
+		current := heap.popSmallest()
+		fmt.Println(current)
+		totalCost = totalCost + int64(current[0])
+		if left <= right {
+			if current[1] == 0 {
+				heap.Insert([]int{costs[left], 0})
+				left++
+			} else {
+				heap.Insert([]int{costs[right], 1})
+				right--
 			}
 		}
-		if len(endHeap.array) < candidates && len(startHeap.array)+len(endHeap.array) < n {
-			nextIndex := n - 1 - len(endHeap.array)
-			if nextIndex >= 0 {
-				endHeap.Insert(costs[nextIndex])
-			}
-		}
-		k--
 	}
-
 	return totalCost
 }
 
 type MinHeap struct {
-	array []int
+	array [][]int
 }
 
 func NewMinHeap() *MinHeap {
 	return &MinHeap{}
 }
 
-func (this *MinHeap) Insert(num int) {
-	this.array = append(this.array, num)
+func (this *MinHeap) Insert(listNums []int) {
+	this.array = append(this.array, listNums)
 	this.heapifyUp(len(this.array) - 1)
 }
 
 func (this *MinHeap) heapifyUp(index int) {
 	for index > 0 {
 		parentIndex := (index - 1) / 2
-		if this.array[parentIndex] <= this.array[index] {
+		if this.array[parentIndex][0] <= this.array[index][0] {
 			break
 		}
 		this.array[index], this.array[parentIndex] = this.array[parentIndex], this.array[index]
@@ -128,10 +118,10 @@ func (this *MinHeap) heapifyDown(index int) {
 		rightChildIdnex := index*2 + 2
 		smallestIndex := index
 
-		if leftChildIndex < len(this.array) && this.array[smallestIndex] > this.array[leftChildIndex] {
+		if leftChildIndex < len(this.array) && this.array[smallestIndex][0] >= this.array[leftChildIndex][0] {
 			smallestIndex = leftChildIndex
 		}
-		if rightChildIdnex < len(this.array) && this.array[smallestIndex] > this.array[rightChildIdnex] {
+		if rightChildIdnex < len(this.array) && this.array[smallestIndex][0] >= this.array[rightChildIdnex][0] {
 			smallestIndex = rightChildIdnex
 		}
 		if smallestIndex == index {
@@ -143,9 +133,9 @@ func (this *MinHeap) heapifyDown(index int) {
 	}
 }
 
-func (this *MinHeap) popSmallest() int {
+func (this *MinHeap) popSmallest() []int {
 	if len(this.array) == 0 {
-		return -1 // or handle the error appropriately
+		panic("Heap is empty")
 	}
 	smallest := this.array[0]
 	this.array[0] = this.array[len(this.array)-1]
