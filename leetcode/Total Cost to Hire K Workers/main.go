@@ -67,13 +67,11 @@ func totalCost(costs []int, k int, candidates int) int64 {
 	for i := len(costs) - candidates; i < len(costs); i++ {
 		heap.Insert([]int{costs[i], 1})
 	}
-	fmt.Println(heap)
 	left := candidates
 	right := len(costs) - candidates - 1
 
 	for i := 0; i < k; i++ {
 		current := heap.popSmallest()
-		fmt.Println(current)
 		totalCost = totalCost + int64(current[0])
 		if left <= right {
 			if current[1] == 0 {

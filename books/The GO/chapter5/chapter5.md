@@ -121,5 +121,90 @@ func main() {
 	result := compute(operation, 5, 3)
 	fmt.Println(result) // Output: 8
 }
+```
 
+
+## 5.6 Anonymous function
+- Anonymous functions are functions that are defined without a name.
+- These functions are useful when you want to define a function on the fly and use it immediately.
+
+### Defining and using anonymous function:
+```go
+package main
+
+import "fmt"
+
+func main() {
+    // Defining an anonymous function and calling it immediately
+    func() {
+        fmt.Println("Hello from anonymous function!")
+    }()
+}
+```
+
+### Assigning Anonmous Functions to Variables
+```go
+package main
+
+import "fmt"
+
+func main() {
+    // Assigning an anonymous function to a variable
+    greet := func(name string) {
+        fmt.Printf("Hello, %s!\n", name)
+    }
+
+    // Calling the anonymous function
+    greet("Alice")
+    greet("Bob")
+}
+```
+
+### Anonymous Functions as Closures
+```go
+package main
+
+import "fmt"
+
+func main() {
+    // Defining a function that returns an anonymous function (closure)
+    counter := func() func() int {
+        count := 0
+        return func() int {
+            count++
+            return count
+        }
+    }
+
+    // Using the closure
+    increment := counter()
+    fmt.Println(increment()) // Output: 1
+    fmt.Println(increment()) // Output: 2
+    fmt.Println(increment()) // Output: 3
+}
+```
+
+### Passing Anonymous functions as Arguments
+```go
+package main
+
+import "fmt"
+
+// A function that takes another function as an argument
+func applyOperation(a, b int, operation func(int, int) int) int {
+    return operation(a, b)
+}
+
+func main() {
+    // Using anonymous functions as arguments
+    sum := applyOperation(3, 4, func(x, y int) int {
+        return x + y
+    })
+    product := applyOperation(3, 4, func(x, y int) int {
+        return x * y
+    })
+
+    fmt.Println("Sum:", sum)         // Output: Sum: 7
+    fmt.Println("Product:", product) // Output: Product: 12
+}
 ```
