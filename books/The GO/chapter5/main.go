@@ -3,37 +3,32 @@ package main
 import (
 	"chapter5/exercises/functv"
 	"fmt"
-	"os"
-
-	"golang.org/x/net/html"
 )
 
-const filePath = "mock-data/draft.html"
+// const filePath = "mock-data/draft.html"
 
 func main() {
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
-		os.Exit(1)
+	var prereqs = map[string][]string{
+		"algorithms": {"data structures"},
+		"calculus":   {"linear algebra"},
+		"compilers": {
+			"data structures",
+			"formal languages",
+			"computer organization",
+		},
+		"data structures":       {"discrete math"},
+		"databases":             {"data structures"},
+		"discrete math":         {"intro to programming"},
+		"formal languages":      {"discrete math"},
+		"networks":              {"operating systems"},
+		"operating systems":     {"data structures", "computer organization"},
+		"programming languages": {"data structures", "computer organization"},
 	}
-	defer file.Close()
-	doc, err := html.Parse(file)
+	order, err := functv.TopoSortExtend(prereqs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "findlinks1: %v\n", err)
-		os.Exit(1)
+		fmt.Printf("Error: %s\n", err)
 	}
-
-	newPrettyPrinter := functv.NewPrettyPrinter()
-	newPrettyPrinter.Print(doc)
-
-	prettyHTML := newPrettyPrinter.String()
-	fmt.Println(prettyHTML)
-
-	// Write the pretty-printed HTML to a file
-	outputFile := "output.html"
-	err = os.WriteFile(outputFile, []byte(prettyHTML), 0644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing file: %v\n", err)
-		os.Exit(1)
+	for i, course := range order {
+		fmt.Printf("%d:\t%s\n", i+1, course)
 	}
 }
