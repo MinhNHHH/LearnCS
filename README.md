@@ -2,7 +2,7 @@
 - Pratice leetcode.
 
 # Go:
-- Learn from the bokos: The Go Programming Language.
+- Learn from the book: The Go Programming Language.
 
 # SICP
 - Learn from the book: Structure and Intepretation of Computer Programs
