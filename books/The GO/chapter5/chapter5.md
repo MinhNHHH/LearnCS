@@ -208,3 +208,54 @@ func main() {
     fmt.Println("Product:", product) // Output: Product: 12
 }
 ```
+
+## 5.7 Variadic Functions
+
+- A variadic function is one that can be called with varying numbers of arguments.
+```go
+func sum(vals ...int) int {
+	total := 0
+	for _, val := range vals {
+			total += val
+	}
+	return total
+
+	fmt.Println(sum())           //  "0"
+	fmt.Println(sum(3))          //  "3"
+	fmt.Println(sum(1, 2, 3, 4)) //  "10"
+}
+```
+
+- Although the ...int parameter behaves like a slice within the function body, the type of a variadic.
+- Variadic functions are often used for string formatting.
+
+## 5.8 Deferred Function calls
+- The `defer` statement in Go is a powerful feature used to ensure that certain statements are executed when a function completes.
+- It's commonly used for resource cleanup tasks, such as closing files, releasing locks, or any other operations that need to happen regardless of how the function exist.
+
+#### How `derfer` work
+- The `defer` statement is followed by a function call
+- Execution Timing: The deferred function is not executed immediately but is scheduled to be run after the surrounding function returns.
+- LIFO Order: If multiple `defer` statements are present, they are executed in LAST-IN-FIRST-OUT.
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    fmt.Println("Start")
+    
+    defer fmt.Println("Deferred: 1")
+    defer fmt.Println("Deferred: 2")
+    defer fmt.Println("Deferred: 3")
+
+    fmt.Println("End")
+}
+```
+
+
+## 5.9 Panic

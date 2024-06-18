@@ -11,7 +11,7 @@ func (receiverType ReceiverName) MethodName(parameters) (returnType) {
 
 - `Receiver`: The receiver is a parameter that denotes which type the method belongs to.
 - `Method name`: the name of method.
-- `Parameters`: The lis of parameters the method takes.
+- `Parameters`: The list of parameters the method takes.
 - `Return type`: The type of value the method returns.
 
 ## EXAMPLE
