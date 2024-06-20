@@ -1,7 +1,6 @@
-package main
+package exercises
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +13,7 @@ func (d dollars) String() string { return fmt.Sprintf("$%.2f", d) }
 
 type Database map[string]dollars
 
-func main() {
+func Ex711() {
 	db := Database{"shoes": 50, "socks": 5}
 	http.HandleFunc("/list", db.List)
 	http.HandleFunc("/price", db.Price)
@@ -25,8 +24,8 @@ func main() {
 }
 
 func (db Database) List(w http.ResponseWriter, req *http.Request) {
-	if err := json.NewEncoder(w).Encode(db); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	for item, price := range db {
+		fmt.Fprintf(w, "%s: %s\n", item, price)
 	}
 }
 func (db Database) Price(w http.ResponseWriter, req *http.Request) {
