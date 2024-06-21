@@ -238,3 +238,115 @@ var s Shape = Rectangle{Width: 10, Height: 5}
 - Here `s` is an interface value where:
   - The `dynamic type` is `Rectangle`
   - The `dynamic value` is `Rectangle{Width: 10, Height: 5}`
+
+# 7.6 sort.Interface
+- The `sort.Interface` is an interface that specifies methods required for sorting a collection.
+
+- The `sort.Interface` is defined as follows:
+```go
+type Interface interface {
+    Len() int // Return the number of elements in the collection.
+    Less(i, j int) bool // Reports whether the element at index `i` should sort before the element at index `j`. This is where the custom sorting logic goes.
+    Swap(i, j int) // Swap the elements at indices `i` and `j`.
+}
+```
+# 7.7 The `http.Handler` Interface.
+- The `http.Handler` interface is a central component of the `net/http` package in Go, which in used for building web servers and handling HTTP requests.
+- It provides a simple, consistent way to define how HTTP requests should be processed.
+
+### Definition
+- The `http.Handler` interface is defined as follows:
+```go
+type Handler interface {
+  ServeHTTP(ResponseWriter, *Request)
+}
+```
+
+- `ServerHTTP(ResponseWriter, *Request)`: This method takes two parameters:
+  - `ResponseWriter`: Used to construct the HTTP response by writing headers and the response body.
+  - `*Request`: Represents the incoming HTTP request, containing all the details about the request such as URL, method, headers, and body,...
+
+### Example
+```go
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+type MyHandler struct{}
+
+func (h *MyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "Hello, World!")
+}
+
+func main() {
+  handler := &MyHandler{}
+  http.ListenAndServe(":8080", handler)
+}
+```
+
+### Composing Handlers with http.ServeMux
+
+- The `http.ServeMux` type is a request multiplexer that routers incoming requests to the appropriate handler based on the request URL.
+
+```go
+package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "Hello, World!")
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "About Page")
+}
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc("/hello", helloHandler)
+    mux.HandleFunc("/about", aboutHandler)
+
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+### Middleware with http.Handler
+- Middleware is a common pattern used to process HTTP request and reponses in a chain.
+- Middleware can be implemented by creating a fucntion that takes an `http.Handler` and returns a new `http.Handler`
+
+```go
+package main
+
+import (
+  "log"
+  "net/http"
+  "time"
+)
+
+func loggingMiddleware(next http.Handler) http.Handler {
+  return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+      start := time.Now()
+      next.ServeHTTP(w, r)
+      log.Printf("Request processed in %s", time.Since(start))
+  })
+}
+
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+  w.Write([]byte("Hello, World!"))
+}
+
+func main() {
+  mux := http.NewServeMux()
+  mux.HandleFunc("/hello", helloHandler)
+
+  loggedMux := loggingMiddleware(mux)
+
+  http.ListenAndServe(":8080", loggedMux)
+}
+```
