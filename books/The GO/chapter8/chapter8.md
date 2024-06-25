@@ -48,6 +48,81 @@ ch := make(chan struct{})
     close(ch)
 ```
 
+### When to `close` a channel
+1. Signaling completion:
+- Close a channel to signal that no more data will be send.
+- This is useful when the receiving goroutine needs to kno that all data has been received.
+```go
+jobs := make(chan int, 5)
+// Sender goroutine
+go func() {
+    for j := 1; j <= 5; j++ {
+        jobs <- j
+    }
+    close(jobs) // Signal no more jobs will be sent
+}()
+
+// Receiver goroutine
+go func() {
+    for job := range jobs {
+        fmt.Println("Received job:", job)
+    }
+    fmt.Println("All jobs received")
+}()
+```
+2. Broadcasting done signal:
+- Close a channel to broadcast a done signal to multiple receivers.
+- This is useful in case where multiple goroutines are waiting for a signal to stop working.
+```go
+done := make(chan struct{})
+
+// Worker goroutine
+go func() {
+    <-done
+    fmt.Println("Received done signal")
+}()
+
+// Closing the done channel signals all waiting goroutines
+close(done)
+```
+
+3. Exiting Loops Gracefully:
+- Close a channel when you need to exit a loop that depends on receiving values from that channel.
+```go
+data := make(chan int)
+
+go func() {
+    for i := 0; i < 10; i++ {
+        data <- i
+    }
+    close(data)
+}()
+
+for num := range data {
+    fmt.Println(num)
+}
+fmt.Println("No more data")
+```
+
+### When `not to close` a channel
+1. Multiple seners:
+- Do not close a channel if there are multiple concurrent senders.
+- Only a signle sender should close the channel to avoid race conditions.
+2. Shared Channels:
+- Do not close a channel that you did not create unless you are sure that you are the only sender.
+- This ensures that other goroutines are not unexpectedly disrupted.
+
+### Guidelines for closing channels.
+1. Responsibility:
+    - The goroutine that creates that channel is usually responsible for closing it.
+    - This prevents race conditions and ensures clear ownership
+2. Idempotency: 
+    - Closing a channel is idempotent.
+    - Multiple calls to `close` will panic, so it should only be closed once.
+3. Panic Handling:
+    - Be aware that sending on a closed channel will cause a panic.
+    - Ensure that no more sends are attempted after closing.
+
 ## 8.4.1 Unbuffered Channels
 - An unbuffered channel is an a channel that has nocapacity to store data.
 - When a value is sent on an unbuffered channel,  the sending goroutine is blocked until another goroutine receives the value.
@@ -73,3 +148,45 @@ func main() {
 - The main go routine blocks on `<-done` until the anonymous goroutine sends a value ensuring that "Hello, World!" is printed before the program exits.
 
 ## 8.4.2 Pipelines.
+- Channels can be used to connect goroutines together so that the output of one is the input to another.
+- Counter -> Squarer -> Printer
+- The first goroutine `counter` generates the integers 0,1,2,3,... and sends them orver a channel to the second goroutine, `sqarer`, which receives each value, squares it, and sends the result over another channel to the third goroutine `printer` which receives the squared values and prints them.
+- If the sender knows that no further values will ever be sent on a channel, it is useful to communicate this fact to the receiver goroutines so that they can stop waiting. This is accomplished by `closing` the channel use `close(ch)`.
+
+## 8.4.3 Unidirectional
+- We will break up large function in `gopl.io/ch8/pipeline2` above nito smaller pieces.
+
+```go
+    func counter(out chan int)
+    func squarer(out, in chan int)
+    func printer(in chan int)
+```
+
+- The `squarer` function sitting in the middle of the pipele, take two parameters, the input channel and the output channel. Bothe have the save type, but their intended uses are opposite: `in` is only to be received from, and `out` is only to be sent to.
+
+-The Go type system provides unidirectional channel types that expose only one or the other of the send and receive operations.
+```go
+    chan<- int // send-only channel of int.
+    <-chan int // receive-only channle of int.
+```
+
+## 8.4.4 Buffered Channels
+- Buffered channels in go are a powerful feature that aloows goroutines to communicate with each other.
+- Unlinke unbuffered channels, which block the sending goroutine until another goroutine receives from the channel, buffered channels provide a way to send and receive data without immediate synchronization between sender and receiver.
+
+### What is buffered channels?
+- A buffered channel has a capacity, defined when the channel si created.
+- This capacity determines the number of elements that can be stored in the channel at any given time before any send operation blocks.
+
+```go
+    ch := make(chan int, e) // create buffered channel
+    ch <- 1 // does not block
+    ch <- 2 // does not block
+    ch <- 3 // does not block
+    ch <- 4 // blocks until space is available
+```
+
+### Advantages of buffered channels:
+1. `Decoupling senders and receivers`: Buffered channels allow senders and receivers to run at different speeds by providing a buffer where values can be stored temporarily.
+2. `Reducing synchronization overhead`: By allowing send operations to complete without blocking, buffered channels can reduce the overhead of synchronization in some scenarios.
+
