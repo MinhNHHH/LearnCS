@@ -51,7 +51,7 @@ ch := make(chan struct{})
 ### When to `close` a channel
 1. Signaling completion:
 - Close a channel to signal that no more data will be send.
-- This is useful when the receiving goroutine needs to kno that all data has been received.
+- This is useful when the receiving goroutine needs to know that all data has been received.
 ```go
 jobs := make(chan int, 5)
 // Sender goroutine
@@ -189,4 +189,85 @@ func main() {
 ### Advantages of buffered channels:
 1. `Decoupling senders and receivers`: Buffered channels allow senders and receivers to run at different speeds by providing a buffer where values can be stored temporarily.
 2. `Reducing synchronization overhead`: By allowing send operations to complete without blocking, buffered channels can reduce the overhead of synchronization in some scenarios.
+
+
+### sync.WaitGroup
+- It's a synchronization primitive used to manage the lifecycle and coordination of multiple goroutines.
+1. Goroutine Synchronization:
+- `sync.WaitGroup` allows a program to wait for a collection of goroutines to complete their execution.
+2. Counter Mechanism:
+    - Add: Increase of decreases the internal counter by delta. This is used to indicate the number of goroutines to wait for
+    - Done(): Decreases the counter by one. This is typically called using `defer` in each go routines to signal its completion.
+    - Wait(): Blocks until the counter becoimes zero, ensuring all goroutines have finished their work.
+
+#### The goals of WaitGroup
+1. Synchronize groutine comppletion:
+    - Waiting for multiple goroutines
+    - Tracking active goroutines.
+2. Coordination of Concurrent Operations
+    - Ensuring orderly execution
+    - Avoiding premature exit
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"net"
+	"strings"
+	"sync"
+	"time"
+)
+
+func echo(c net.Conn, shout string, delay time.Duration, wg *sync.WaitGroup) {
+	defer wg.Done() // Ensure the counter is decremented when the goroutine completes
+	fmt.Fprintln(c, "\t", strings.ToUpper(shout))
+	time.Sleep(delay)
+	fmt.Fprintln(c, "\t", shout)
+	time.Sleep(delay)
+	fmt.Fprintln(c, "\t", strings.ToLower(shout))
+}
+
+func handleConn(c *net.TCPConn) {
+	var wg sync.WaitGroup // Create a new WaitGroup for each connection
+	input := bufio.NewScanner(c)
+	for input.Scan() {
+		wg.Add(1)
+		go echo(c, input.Text(), 1*time.Second, &wg)
+	}
+	wg.Wait() // Wait for all echo goroutines to finish for this connection
+	c.CloseWrite() // Close the write half of the connection
+	c.Close() // Fully close the connection
+}
+
+func main() {
+	l, err := net.Listen("tcp", "localhost:8000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			log.Print(err) // e.g., connection aborted
+			continue
+		}
+		tcpConn := conn.(*net.TCPConn)
+		go handleConn(tcpConn)
+	}
+}
+```
+
+- In this example. So we implemented WaitGroup for each connection.
+- Each connection should have its own `WaitGroup` because `WaitGroup` is used to manage and synchronize the lifecycle of goroutines specific to that connection.
+
+Some reasons why having a separeate `WaitGroup`:
+1. Isolation of Concurrency Management:
+- `Separate Lifecycle Management`: Each connection can spawn multiple goroutines to handle its own each operations. Using a single `WaitGroup` for all conntions would mean that the `WaitGroup` is tracking goroutines across multiple connections, making it impossible to close individual connections correctly when their respective goroutines complete.
+- `Correct Resource Cleanup`: each connection needs to ensure its resources are properly cleaned up when its goroutines sinsh. If all connections share the same `WaitGroup` the closure of one connection might be delayed until all aother connection's goroutines finsish, leading to resource leaks or incorrect behavior.
+
+2. Accurate Synchronization.
+- `Per-connection Synchronzation`: Each connection should wait for its own goroutines to finsh before closing the write half of the TCP connection. Sharing a `WaitGroup` across connections would make it challenging to determine when it's safe to cose specific connection since the `WaitGroup` would be waiting for goroutines from multiple connections to finsh.
+- `Avoiding Interference`: If a `WaitGroup` is shared, any delay or long-running goroutine from one connection cloud block the closure of the other connections, causing interference and potentially leading to resource contention and degraded performance.
 
