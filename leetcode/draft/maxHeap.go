@@ -35,7 +35,6 @@ func (h *MaxHeap) DeleteMax() int {
 func (h *MaxHeap) heapifyUp(index int) {
 	for index > 0 {
 		parentIndex := (index - 1) / 2
-		fmt.Println(index, parentIndex)
 		if h.array[parentIndex] >= h.array[index] {
 			break
 		}
