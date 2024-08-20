@@ -3,4 +3,4 @@
       a
       (gcd b (remainder a b))))
 
-(gcd 206 41)
+(gcd 206 40)
