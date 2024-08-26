@@ -11,7 +11,7 @@ import (
 func main() {
 	rdb := db.NewRedis()
 	r := gin.Default()
-	limitter := middleware.InitRateLimiter(rdb)
+	limitter := middleware.InitLimiter(rdb)
 
 	r.Use(limitter.RateLimiter())
 	r.GET("/ping", func(c *gin.Context) {

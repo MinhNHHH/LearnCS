@@ -44,7 +44,7 @@ func (rl *RateLimiter) RateLimiter() gin.HandlerFunc {
 	}
 }
 
-func InitRateLimiter(rdb *redis.Client) *RateLimiter {
+func InitLimiter(rdb *redis.Client) *RateLimiter {
 	return &RateLimiter{
 		rdb: rdb,
 	}
