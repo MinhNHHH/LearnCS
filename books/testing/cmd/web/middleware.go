@@ -12,7 +12,10 @@ type contextKey string
 const contextUserKey contextKey = "user_ip"
 
 func (app *application) ipFromContext(ctx context.Context) string {
-	return ctx.Value(contextUserKey).(string)
+	if ctx.Value(contextUserKey) != nil {
+		return ctx.Value(contextUserKey).(string)
+	}
+	return ""
 }
 
 func (app *application) addIPToContext(next http.Handler) http.Handler {
