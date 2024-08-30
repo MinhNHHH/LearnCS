@@ -1,21 +1,25 @@
 package main
 
 import (
-	"database/sql"
+	"encoding/gob"
 	"flag"
 	"log"
 	"net/http"
 
+	"github.com/MinhNHHH/testing/pkg/data"
+	"github.com/MinhNHHH/testing/pkg/db"
 	"github.com/alexedwards/scs/v2"
 )
 
 type application struct {
 	Session *scs.SessionManager
-	DB      *sql.DB
+	DB      db.PostgresConn
 	DSN     string
 }
 
 func main() {
+	gob.Register(data.User{})
+
 	// setup an app config
 	app := application{}
 
@@ -26,7 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app.DB = conn
+	defer conn.Close()
+	app.DB = db.PostgresConn{DB: conn}
 	// get a session manager
 	app.Session = getSession()
 	// print out a message

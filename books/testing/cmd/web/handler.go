@@ -1,17 +1,21 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"path"
 	"time"
+
+	"github.com/MinhNHHH/testing/pkg/data"
 )
 
 type TemplateData struct {
-	IP   string
-	Data map[string]any
+	IP    string
+	Data  map[string]any
+	Error string
+	Flash string
+	User  data.User
 }
 
 var pathToTemplates = "/home/minh/Desktop/learn_cs/books/testing/cmd/template/"
@@ -27,17 +31,18 @@ func (app *application) Home(w http.ResponseWriter, r *http.Request) {
 	_ = app.render(w, r, "home.page.gohtml", &TemplateData{Data: td})
 }
 
-func (app *application) render(w http.ResponseWriter, r *http.Request, t string, data *TemplateData) error {
+func (app *application) render(w http.ResponseWriter, r *http.Request, t string, td *TemplateData) error {
 	// parse the template from disk
 	parsedTemplate, err := template.ParseFiles(path.Join(pathToTemplates, t), path.Join(pathToTemplates, "base.layout.gohtml"))
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	}
 
-	data.IP = app.ipFromContext(r.Context())
-
+	td.IP = app.ipFromContext(r.Context())
+	td.Error = app.Session.PopString(r.Context(), "error")
+	td.Flash = app.Session.PopString(r.Context(), "flash")
 	// execute the template, passing it data if any
-	err = parsedTemplate.Execute(w, data)
+	err = parsedTemplate.Execute(w, td)
 	if err != nil {
 		return err
 	}
@@ -55,13 +60,55 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 	form.Required("email", "password")
 
 	if !form.Valid() {
-		fmt.Fprint(w, "failed validation")
+		app.Session.Put(r.Context(), "error", "invalid login credentials")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
 	}
 
 	email := form.Data.Get("email")
 	password := form.Data.Get("password")
 
-	log.Println(email, password)
+	user, err := app.DB.GetUserByEmail(email)
+	if err != nil {
+		log.Println(err)
+		app.Session.Put(r.Context(), "error", "Invalid login!")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	if !app.authenticate(r, user, password) {
+		app.Session.Put(r.Context(), "error", "Invalid login!")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	// authenticate the user
+	// if not authenticated then redirect with error
 
-	fmt.Fprint(w, email)
+	// prevent fixation attack
+	_ = app.Session.RenewToken(r.Context())
+
+	// store success message in session
+
+	// redirect to some other page
+	app.Session.Put(r.Context(), "flash", "Successfully logged in!")
+	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
+}
+
+func (app *application) Profile(w http.ResponseWriter, r *http.Request) {
+	var td = make(map[string]any)
+	if app.Session.Exists(r.Context(), "test") {
+		msg := app.Session.GetString(r.Context(), "test")
+		td["test"] = msg
+	} else {
+		app.Session.Put(r.Context(), "test", "Hit this page at "+time.Now().UTC().String())
+	}
+	_ = app.render(w, r, "profile.page.gohtml", &TemplateData{})
+}
+
+func (app *application) authenticate(r *http.Request, user *data.User, password string) bool {
+	if valid, err := user.PasswordMatches(password); err != nil || !valid {
+		return false
+	}
+
+	app.Session.Put(r.Context(), "user", user)
+	return true
 }
