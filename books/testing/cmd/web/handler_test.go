@@ -20,7 +20,7 @@ func Test_application_handler(t *testing.T) {
 		expectedFirstStatusCode int
 	}{
 		{"home", "/", http.StatusOK, "/", http.StatusOK},
-		{"404", "/404", http.StatusNotFound, "/fish", http.StatusNotFound},
+		{"404", "/404", http.StatusNotFound, "/404", http.StatusNotFound},
 		{"profile", "/user/profile", http.StatusOK, "/", http.StatusTemporaryRedirect},
 	}
 

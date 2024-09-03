@@ -18,7 +18,7 @@ type TemplateData struct {
 	User  data.User
 }
 
-var pathToTemplates = "/home/minh/Desktop/learn_cs/books/testing/cmd/template/"
+var pathToTemplates = "/Users/minhnh2298/Desktop/minh/fun/learn_cs/books/testing/cmd/template"
 
 func (app *application) Home(w http.ResponseWriter, r *http.Request) {
 	var td = make(map[string]any)
