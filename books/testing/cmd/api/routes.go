@@ -12,8 +12,7 @@ func (app *application) routes() http.Handler {
 
 	// register middleware
 	mux.Use(middleware.Recoverer)
-
-	// mux.Use(app.enableCORS)
+	mux.Use(app.enableCORS)
 
 	// authenticate routes - auth handler, refresh
 	mux.Post("/auth", app.authenticate)
@@ -31,6 +30,8 @@ func (app *application) routes() http.Handler {
 	// protected routes
 	mux.Route("/users", func(muxUser chi.Router) {
 		// use auth middleware
+		muxUser.Use(app.authRequired)
+
 		muxUser.Get("/", app.allUsers)
 		muxUser.Get("/{userId}", app.getUser)
 		muxUser.Delete("/{userId}", app.deleteUser)
