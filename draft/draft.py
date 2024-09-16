@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-
+import re
 # LinkedIn URL (example, use a real one if you have permission)
 url = "https://www.linkedin.com/jobs/view/golang-developer-can-work-remotely-at-sotatek-jsc-4007752495/"
 url1 = "https://www.topcv.vn/viec-lam/senior-golang-developer/1376241.html?ta_source=JobSearchList_LinkDetail&u_sr_id=KiSczNgZGvWTmLlECuYzPOwKJDnt4F2NtxlhP0Xg_1726470930"
@@ -12,7 +12,7 @@ headers = {
 
 # Fetch the page
 response = requests.get(url, headers=headers)
-
+pattern = r'(\d+)\+?\s*years?\s*of\s*experience'
 # Parse the HTML content using BeautifulSoup
 soup = BeautifulSoup(response.text, 'html.parser')
 # a = soup.find('div', class_="job-detail__information-detail--content")
@@ -23,31 +23,43 @@ soup = BeautifulSoup(response.text, 'html.parser')
 
 
 fillter = {
-    "min-exp": 3,
+    "min_exp": 3,
     "skill": ["python", "go", "nodejs"]
 }
 
 
-# def fillter(text, condition):
-#
-#
-# a = soup.find('div', class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden")
-# if a:
-#     all_text = a.get_text(separator='\n', strip=True).split("Requirements")
-#     if len(all_text) > 0:
-#         for text in all_text[-1].split("\n"):
-#
+def regex(text, pattern):
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    if matches:
+        return matches.sort()
+    return []
 
-import re
- # Sample text containing experience information
-text = "The candidate has 3+ years of experience with Go development and 5 years with Python."
 
-# Regular expression pattern to match experience information
-pattern = r'(\d+)\+?\s*years?\s*of\s*experience'
+def rcm(text, fillter):
+   skills = fillter.get("skill", [])
+   min_exp = fillter.get("min_exp", 0)
 
-# Find all matches
-matches = re.findall(pattern, text, re.IGNORECASE)   
-print(matches)
+   min_e = regex(text, pattern)
+   if min_e and len(min_e) > 0 and min_e[-1] >= min_exp:
+       return True
+   if any(skill.lower() in text.lower() for skill in skills):
+       return True
+    
+   return False
+
+a = soup.find('div', class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden")
+if a:
+    all_text = a.get_text(separator='\n', strip=True).split("Requirements")
+    if len(all_text) > 0:
+        count = 0
+        for text in all_text[-1].split("\n"):
+            a = rcm(text, fillter)
+            if a:
+                count += 1
+        if count >= len(fillter):
+            print(True) 
+        else:
+            print(False)
 
 # # Example: Extract the profile headline
 # headline = soup.find("h1", {"class": "top-card-layout__title"}).text.strip()

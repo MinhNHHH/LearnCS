@@ -10,6 +10,9 @@ topcv:
   "location_class": "address"
   "salary_tag": "label"
   "salary_class": "title-salary"
+  "req_tag": "div"
+  "req_class": "job-detail__information-detail--content"
+  "req_split": "Yêu cầu ứng viên"
 
 linkedin:
   "url": https://www.linkedin.com/jobs/search/?geoId=104195383&keywords={job}&origin=JOBS_HOME_KEYWORD_HISTORY&refresh=true&start={range}
@@ -23,4 +26,7 @@ linkedin:
   "location_class": "job-search-card__location"
   "salary_tag": "div"
   "salary_class": "salary"
+  "req_tag": "div"
+  "req_class": "show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden"
+  "req_split": "Requirements"
 

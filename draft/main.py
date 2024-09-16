@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import yaml
 import threading
+import re
 # Title
 # Company
 # Location
@@ -11,8 +12,10 @@ import threading
 # Email
 # Salary
 
+# Extended regular expression pattern to match various experience formats
+pattern = r'(\d+)\+?\s*years?\s*of\s*experience'
 
-def parser_url(url, param=None):
+def format_url(url, param=None):
     if not param:
         return url
     url = url.format(**param)
@@ -26,6 +29,45 @@ def load_yml(file_path):
 
     return config
 
+
+def regex(text, pattern):
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    if matches:
+        return matches.sort()
+    return []
+
+
+def fillter_condition(text, fillter):
+   skills = fillter.get("skill", [])
+   min_exp = fillter.get("min_exp", 0)
+
+   # Find the number of years experience from text
+   exp = regex(text, pattern)
+   if exp and len(exp) > 0 and exp[-1] >= min_exp:
+       return True
+   if any(skill.lower() in text.lower() for skill in skills):
+       return True
+    
+   return False
+
+def extract_requirements(url, configs):
+    soup = parser_html(url)
+    req = soup.find(configs.get("req_tag"), class_=configs.get("req_class"))
+    if req:
+        all_text = req.get_text(separator="\n", strip=True).split(configs.get("req_split"))
+        if len(all_text) > 0:
+           return all_text[-1]
+    return ""
+
+def statify_req(content, fillter):
+    if content:
+        statify_count = 0
+        for text in content.split("\n"):
+            if fillter_condition(text, fillter):
+                statify_count += 1
+        if statify_count >= len(fillter):
+            return True
+    return False
 
 def parser_html(url):
     headers = {
@@ -47,8 +89,6 @@ def get_href(soup):
                 content = link.get("href")
     return content
 
-def rcm(content, condition):
-    pass
 
 def extract_data(url, configs):
     soup = parser_html(url)
@@ -56,6 +96,10 @@ def extract_data(url, configs):
         configs.get("find_jobs_tag"), class_=configs.get("find_jobs_class")
     )
     data = []
+    fillters = {
+        "min_exp": 3,
+        "skill": ["python", "go", "nodejs"]
+    }
     if len(jobs) == 0:
         return data
     for job in jobs:
@@ -69,29 +113,30 @@ def extract_data(url, configs):
         salary = job.find(configs.get("salary_tag"), class_=configs.get("salary_class"))
         company_url = get_href(company_name)
         job_description_url = get_href(title)
-        data.append(
-            {
-                "Title": title.text.strip(),
-                "Company": company_name.text.strip(),
-                "Company_URL": company_url,
-                "Location": location.text.strip(),
-                "Job Description": job_description_url,
-                "Salary": salary.text.strip() if salary else "",
-            }
-        )
+        if statify_req(extract_requirements(job_description_url, configs), fillters):
+            data.append(
+                {
+                    "Title": title.text.strip(),
+                    "Company": company_name.text.strip(),
+                    "Company_URL": company_url,
+                    "Location": location.text.strip(),
+                    "Job Description": job_description_url,
+                    "Salary": salary.text.strip() if salary else "",
+                }
+            )
     return data
 
 
 def process_platform(platform, config, data_lock, data_list):
-    default_query = {'job': 'python'}
+    default_query = {'job': 'go'}
     url = config.get("url")
     local_data = []
-    for i in range(1):
+    for i in range(5):
         if platform == "linkedin":
             default_query['range'] = i * 25
         else:
             default_query['page'] = i
-        new_url = parser_url(url, default_query)
+        new_url = format_url(url, default_query)
         extract = extract_data(new_url, config)
         local_data.extend(extract)
         print(f"Done {new_url}")
