@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-
+import pandas as pd
+import yaml
+import threading
 # Title
 # Company
 # Location
@@ -8,11 +10,21 @@ from bs4 import BeautifulSoup
 # Description
 # Email
 # Salary
-job = "golang"
-location = "hanoi"
-page = 1
-url = f"https://www.topcv.vn/tim-viec-lam-{job}?sba={page}"
-url1 = "https://www.linkedin.com/jobs/search/?currentJobId=4007749799&distance=25&geoId=104195383&keywords=Go%20(Programming%20Language)&origin=JOBS_HOME_KEYWORD_HISTORY&refresh=true"
+
+
+def parser_url(url, param=None):
+    if not param:
+        return url
+    url = url.format(**param)
+    return url
+
+
+def load_yml(file_path):
+    config = {}
+    with open(file_path, "r") as file:
+        config = yaml.safe_load(file)
+
+    return config
 
 
 def parser_html(url):
@@ -23,7 +35,8 @@ def parser_html(url):
     response = requests.get(url, headers=headers)
     return BeautifulSoup(response.text, "html.parser")
 
-def extract_link_from_a_tag(soup):
+
+def get_href(soup):
     content = ""
     if soup:
         if soup.name == "a":
@@ -33,6 +46,9 @@ def extract_link_from_a_tag(soup):
             if link:
                 content = link.get("href")
     return content
+
+def rcm(content, condition):
+    pass
 
 def extract_data(url, configs):
     soup = parser_html(url)
@@ -51,8 +67,8 @@ def extract_data(url, configs):
             configs.get("location_tag"), class_=configs.get("location_class")
         )
         salary = job.find(configs.get("salary_tag"), class_=configs.get("salary_class"))
-        company_url = extract_link_from_a_tag(company_name)
-        job_description_url = extract_link_from_a_tag(title)
+        company_url = get_href(company_name)
+        job_description_url = get_href(title)
         data.append(
             {
                 "Title": title.text.strip(),
@@ -66,35 +82,46 @@ def extract_data(url, configs):
     return data
 
 
+def process_platform(platform, config, data_lock, data_list):
+    default_query = {'job': 'python'}
+    url = config.get("url")
+    local_data = []
+    for i in range(1):
+        if platform == "linkedin":
+            default_query['range'] = i * 25
+        else:
+            default_query['page'] = i
+        new_url = parser_url(url, default_query)
+        extract = extract_data(new_url, config)
+        local_data.extend(extract)
+        print(f"Done {new_url}")
+    # Safely append to shared data_list using a lock to avoid race conditions
+    with data_lock:
+        data_list.extend(local_data)
+
+
+def run_threads(configs):
+    threads = []
+    data = []
+    data_lock = threading.Lock()  # Create a lock to synchronize data access
+    # Create a thread for each platform
+    for platform, config in configs.items():
+        thread = threading.Thread(target=process_platform, args=(platform, config, data_lock, data))
+        threads.append(thread)
+        thread.start()  # Start the thread
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    return data
+
+
 def main():
-    topcv = {
-        "find_jobs_tag": "div",
-        "find_jobs_class": "job-item-search-result",
-        "title_tag": "h3",
-        "title_class": "title",
-        "company_tag": "a",
-        "company_class": "company",
-        "location_tag": "label",
-        "location_class": "address",
-        "salary_tag": "label",
-        "salary_class": "title-salary",
-    }
-
-    linkedin = {
-        "find_jobs_tag": "div",
-        "find_jobs_class": "base-card relative w-full hover:no-underline focus:no-underline base-card--link base-search-card base-search-card--link job-search-card",
-        "title_tag": "a",
-        "title_class": "base-card__full-link absolute top-0 right-0 bottom-0 left-0 p-0 z-[2]",
-        "company_tag": "h4",
-        "company_class": "base-search-card__subtitle",
-        "location_tag": "span",
-        "location_class": "job-search-card__location",
-        "salary_tag": "div",
-        "salary_class": "salary",
-    }
-    data = extract_data(url1, linkedin)
-    print(data)
-
+    configs = load_yml("config.yml")
+    data = run_threads(configs)
+    df = pd.DataFrame(data)
+    df_no_duplicates = df.drop_duplicates()
+    df_no_duplicates.to_csv("python.csv", index=False)
 
 if __name__ == "__main__":
     main()
