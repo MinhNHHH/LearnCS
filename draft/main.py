@@ -128,10 +128,10 @@ def extract_data(url, configs):
 
 
 def process_platform(platform, config, data_lock, data_list):
-    default_query = {'job': 'go'}
+    default_query = {'job': 'python programming'}
     url = config.get("url")
     local_data = []
-    for i in range(5):
+    for i in range(10):
         if platform == "linkedin":
             default_query['range'] = i * 25
         else:
@@ -166,7 +166,7 @@ def main():
     data = run_threads(configs)
     df = pd.DataFrame(data)
     df_no_duplicates = df.drop_duplicates()
-    df_no_duplicates.to_csv("python.csv", index=False)
+    df_no_duplicates.to_excel("python.xlsx", index=False)
 
 if __name__ == "__main__":
     main()
