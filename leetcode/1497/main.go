@@ -11,7 +11,6 @@ func canArrange(arr []int, k int) bool {
 		key := ((num % k) + k) % k
 		hash[key]++
 	}
-	fmt.Println(hash)
 	for key := range hash {
 		other := k - key
 		if _, ok := hash[other]; ok {
