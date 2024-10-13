@@ -13,7 +13,7 @@ import re
 # Salary
 
 # Extended regular expression pattern to match various experience formats
-pattern = r'(\d+)\+?\s*years?\s*of\s*experience'
+pattern = r'(?:(hơn|trên|over|more than)\s*)?(\d+|một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s*(năm|years?)\s*(kinh nghiệm|of experience)'
 
 def format_url(url, param=None):
     if not param:
@@ -43,6 +43,7 @@ def fillter_condition(text, fillter):
 
    # Find the number of years experience from text
    exp = regex(text, pattern)
+   print(exp)
    if exp and len(exp) > 0 and exp[-1] >= min_exp:
        return True
    if any(skill.lower() in text.lower() for skill in skills):
@@ -128,7 +129,7 @@ def extract_data(url, configs):
 
 
 def process_platform(platform, config, data_lock, data_list):
-    default_query = {'job': 'python programming'}
+    default_query = {'job': 'python'}
     url = config.get("url")
     local_data = []
     for i in range(10):
