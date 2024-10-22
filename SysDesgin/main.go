@@ -2,14 +2,14 @@ package main
 
 import (
 	mdw "github.com/MinhNHHH/sys-design/middleware"
+	rdb "github.com/MinhNHHH/sys-design/redis"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	limiter := mdw.NewTokenBucket(5, 10) // 5 tokens per second, max 10 tokens
-
+	redis := rdb.NewRedisClient()
 	r := gin.Default()
-	r.Use(mdw.RateLimiterMiddleWare(limiter))
+	r.Use(mdw.RateLimiterMiddleWare(mdw.NewTokenBucket(5, 10)))
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	rdb "github.com/MinhNHHH/sys-design/redis"
 	"github.com/gin-gonic/gin"
 )
 
@@ -114,14 +115,16 @@ type TokenBucket struct {
 	tokens     int       // current number of tokens
 	lastFilled time.Time // last time the bucket was filled
 	mux        sync.Mutex
+	rdb        *rdb.Redis
 }
 
-func NewTokenBucket(rate, capacity int) *TokenBucket {
+func NewTokenBucket(rate, capacity int, rdb *rdb.Redis) *TokenBucket {
 	return &TokenBucket{
 		rate:       rate,
 		capacity:   capacity,
 		tokens:     capacity,
 		lastFilled: time.Now(),
+		rdb:        rdb,
 	}
 }
 
@@ -134,6 +137,7 @@ func NewTokenBucket(rate, capacity int) *TokenBucket {
 func (rl *TokenBucket) Allow() bool {
 	rl.mux.Lock()
 	defer rl.mux.Unlock()
+
 	now := time.Now()
 	elapsed := now.Sub(rl.lastFilled).Seconds()
 	rl.tokens += int(elapsed * float64(rl.rate))
