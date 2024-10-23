@@ -9,7 +9,7 @@ import (
 func main() {
 	redis := rdb.NewRedisClient()
 	r := gin.Default()
-	r.Use(mdw.RateLimiterMiddleWare(mdw.NewTokenBucket(5, 10, *redis)))
+	r.Use(mdw.RateLimiterMiddleWare(mdw.NewRateLimiterLeakingBucket(5, 10, *redis)))
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -43,43 +42,30 @@ func NewRateLimiterFixedWindow(limit int, window time.Duration) *FixedWindow {
 func (fw *FixedWindow) Allow(c *gin.Context) bool {
 	fw.mux.Lock()
 	defer fw.mux.Unlock()
-
 	now := time.Now()
-
-	// If the current time is past the window size, reset and create new window.
 	if now.After(fw.windowEnd) {
 		fw.counter = 0
 		fw.windowEnd = now.Add(fw.windowStart)
 	}
-
-	// Check if the reqeust is allowed within the current window
 	if fw.counter < fw.limit {
 		fw.counter++
 		return true
 	}
-
-	// Deny if the limi is reached.
 	return false
 }
 
-type SlidingWindow struct {
-	counter int
-	limit   int
-}
-
 type LeakingBucket struct {
-	bucket     []int
-	capacity   int
-	rate       int
-	lastFilled time.Time
-	mux        sync.Mutex
+	capacity int
+	rate     int
+	rdb      rdb.Cache
+	mux      sync.Mutex
 }
 
-func NewRateLimiterLeakingBucket(rate, bucketSize int) *LeakingBucket {
+func NewRateLimiterLeakingBucket(rate, bucketSize int, rdb rdb.Cache) *LeakingBucket {
 	return &LeakingBucket{
 		rate:     rate,
 		capacity: bucketSize,
-		bucket:   make([]int, bucketSize),
+		rdb:      rdb,
 	}
 }
 
@@ -87,38 +73,73 @@ func NewRateLimiterLeakingBucket(rate, bucketSize int) *LeakingBucket {
 // Leaking bucket algorithm takes the following two parameters:
 // Bucket size: It's equal to the queue size. The queue holds the requests to be processed at a fixed rate
 // Outflow rate: It defines how many request can be processed at a fixed rate.
-func (rl *LeakingBucket) Allow() bool {
+func (rl *LeakingBucket) Allow(ctx *gin.Context) bool {
 	rl.mux.Lock()
 	defer rl.mux.Unlock()
 
 	now := time.Now()
-	elapsed := now.Sub(rl.lastFilled).Seconds()
+	rdb := rl.rdb.Client
+
+	lastFilledCmd, err := rdb.Get(ctx, "lastFilled").Result()
+	if err != nil {
+		log.Println("Error fetching lastFilled:", err)
+		return false
+	}
+
+	lastFilled, err := ParseTime(lastFilledCmd)
+	if err != nil {
+		log.Println("Error parsing lastFilled time:", err)
+		return false
+	}
+
+	// Calculate elapsed time and number of leaked tokens
+	elapsed := now.Sub(lastFilled).Seconds()
 	leaked := int(elapsed * float64(rl.rate))
 
-	// Remove old requests
+	// Get current length of the bucket
+	lenBucket, err := rdb.LLen(ctx, "buckets").Result()
+	if err != nil {
+		log.Println("Error fetching bucket length:", err)
+		return false
+	}
+
+	// Leak tokens from the bucket
 	if leaked > 0 {
-		if leaked >= len(rl.bucket) {
-			rl.bucket = rl.bucket[:0]
+		if leaked >= int(lenBucket) {
+			// Remove all tokens if leaked tokens exceed or match bucket size
+			rdb.LTrim(ctx, "buckets", 1, 0) // effectively clears the list
+			leaked = int(lenBucket)         // adjust leaked to bucket size
 		} else {
-			leaked = 0
-			rl.bucket = rl.bucket[leaked:]
+			// Trim only the leaked number of tokens
+			rdb.LTrim(ctx, "buckets", int64(leaked), -1)
 		}
 	}
-	if len(rl.bucket) < rl.capacity {
-		rl.bucket = append(rl.bucket, 1)
-		rl.lastFilled = now
+
+	// Check if bucket has capacity for a new request
+	if int(lenBucket)-leaked < rl.capacity {
+		// Add a new token to the bucket
+		err = rdb.LPush(ctx, "buckets", 1).Err()
+		if err != nil {
+			log.Println("Error pushing to bucket:", err)
+			return false
+		}
+		// Update lastFilled timestamp
+		err = rdb.Set(ctx, "lastFilled", now, 0).Err()
+		if err != nil {
+			log.Println("Error setting lastFilled:", err)
+			return false
+		}
 		return true
 	}
+	// If bucket is full, reject the request
 	return false
 }
 
 type TokenBucket struct {
 	rate     int // tokens added per second
 	capacity int // max tokens in the bucket
-	// tokens     int       // current number of tokens
-	// lastFilled time.Time // last time the bucket was filled
-	mux sync.Mutex
-	rdb rdb.Cache
+	mux      sync.Mutex
+	rdb      rdb.Cache
 }
 
 func NewTokenBucket(rate, capacity int, rdb rdb.Cache) *TokenBucket {
@@ -130,6 +151,16 @@ func NewTokenBucket(rate, capacity int, rdb rdb.Cache) *TokenBucket {
 		// lastFilled: time.Now(),
 		rdb: rdb,
 	}
+}
+
+func ParseTime(strTime string) (time.Time, error) {
+	// Layout matching the format of your date string
+	layout := "2006-01-02T15:04:05.999999-07:00"
+	timeParse, error := time.Parse(layout, strTime)
+	if error != nil {
+		return time.Time{}, error
+	}
+	return timeParse, nil
 }
 
 // The token bucket algorithm work as follows:
@@ -149,11 +180,12 @@ func (rl *TokenBucket) Allow(ctx *gin.Context) bool {
 		log.Fatal("Get lastFilled error:", err)
 	}
 
-	// Layout matching the format of your date string
-	layout := "2006-01-02T15:04:05.999999-07:00"
-	lastFilled, _ := time.Parse(layout, lastFilledCmd)
+	lastFilled, err := ParseTime(lastFilledCmd)
+	if err != nil {
+		log.Fatal("Error parse time", err)
+	}
+
 	elapsed := now.Sub(lastFilled).Seconds()
-	fmt.Println("elapsed", elapsed)
 	rdb.IncrBy(ctx, "tokens", int64(elapsed*float64(rl.rate)))
 	tokenCmd, err := rdb.Get(ctx, "tokens").Result()
 
@@ -168,23 +200,9 @@ func (rl *TokenBucket) Allow(ctx *gin.Context) bool {
 	rdb.Set(ctx, "lastFilled", now, 0)
 
 	if token > 0 {
-		fmt.Println("11111111111111111", token)
 		rdb.Decr(ctx, "tokens")
 		return true
 	}
-
-	// now := time.Now()
-	// elapsed := now.Sub(rl.lastFilled).Seconds()
-	// rl.tokens += int(elapsed * float64(rl.rate))
-	// if rl.tokens > rl.capacity {
-	// 	rl.tokens = rl.capacity
-	// }
-	// rl.lastFilled = now
-	//
-	// if rl.tokens > 0 {
-	// 	rl.tokens--
-	// 	return true
-	// }
 	return false
 }
 
