@@ -2,17 +2,18 @@ package redis
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type Redis struct {
-	client *redis.Client
+type Cache struct {
+	Client *redis.Client
 }
 
-func NewRedisClient() *Redis {
+func NewRedisClient() *Cache {
 	ctx := context.Background()
 
 	rdb := redis.NewClient(&redis.Options{
@@ -23,9 +24,20 @@ func NewRedisClient() *Redis {
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		panic(fmt.Sprintf("Could not connect to Redis: %v", err))
+		log.Fatal("Could not connect to Redis:", err)
 	}
-	return &Redis{
-		client: rdb,
+
+	// Default set token
+	_, error := rdb.Set(ctx, "tokens", 10, 0).Result()
+	if error != nil {
+		log.Fatal("Set token err", error)
+	}
+	_, error = rdb.Set(ctx, "lastFilled", time.Now(), 0).Result()
+	if err != nil {
+		log.Fatal("Set lastFilled err:", error)
+	}
+
+	return &Cache{
+		Client: rdb,
 	}
 }

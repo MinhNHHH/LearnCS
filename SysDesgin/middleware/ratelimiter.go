@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"fmt"
+	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -9,7 +12,7 @@ import (
 )
 
 type RateLimiter interface {
-	Allow() bool
+	Allow(c *gin.Context) bool
 }
 
 type FixedWindow struct {
@@ -37,7 +40,7 @@ func NewRateLimiterFixedWindow(limit int, window time.Duration) *FixedWindow {
 // The rigid time windows problem comes from the user is penalized havily for making a request right before the window resets.
 // The user makes 4 requests at 12:00:01, 12:00:10, 12:00:20, and 12:00:30. So far the counter for the window 12:00:00 to 12:00:59 is 4/5 requests made out of 5 allowed.
 // The user makes a 5th request at 12:00:55. Fis fills up the request limit for current window. Now the counter is 5/5, and no more requests allowed for this window until it resets.
-func (fw *FixedWindow) Allow() bool {
+func (fw *FixedWindow) Allow(c *gin.Context) bool {
 	fw.mux.Lock()
 	defer fw.mux.Unlock()
 
@@ -110,21 +113,22 @@ func (rl *LeakingBucket) Allow() bool {
 }
 
 type TokenBucket struct {
-	rate       int       // tokens added per second
-	capacity   int       // max tokens in the bucket
-	tokens     int       // current number of tokens
-	lastFilled time.Time // last time the bucket was filled
-	mux        sync.Mutex
-	rdb        *rdb.Redis
+	rate     int // tokens added per second
+	capacity int // max tokens in the bucket
+	// tokens     int       // current number of tokens
+	// lastFilled time.Time // last time the bucket was filled
+	mux sync.Mutex
+	rdb rdb.Cache
 }
 
-func NewTokenBucket(rate, capacity int, rdb *rdb.Redis) *TokenBucket {
+func NewTokenBucket(rate, capacity int, rdb rdb.Cache) *TokenBucket {
+
 	return &TokenBucket{
-		rate:       rate,
-		capacity:   capacity,
-		tokens:     capacity,
-		lastFilled: time.Now(),
-		rdb:        rdb,
+		rate:     rate,
+		capacity: capacity,
+		// tokens:     capacity,
+		// lastFilled: time.Now(),
+		rdb: rdb,
 	}
 }
 
@@ -134,28 +138,59 @@ func NewTokenBucket(rate, capacity int, rdb *rdb.Redis) *TokenBucket {
 // Each request consumes on token. When a request arrives, we check if there are enoguh tokens in the bucket
 // + If there are enoguh tokens, we take on token out for each request, and the request goes through
 // + If there are not enoguh tokens, the request is dropped.
-func (rl *TokenBucket) Allow() bool {
+func (rl *TokenBucket) Allow(ctx *gin.Context) bool {
 	rl.mux.Lock()
 	defer rl.mux.Unlock()
-
+	rdb := rl.rdb.Client
 	now := time.Now()
-	elapsed := now.Sub(rl.lastFilled).Seconds()
-	rl.tokens += int(elapsed * float64(rl.rate))
-	if rl.tokens > rl.capacity {
-		rl.tokens = rl.capacity
-	}
-	rl.lastFilled = now
 
-	if rl.tokens > 0 {
-		rl.tokens--
+	lastFilledCmd, err := rdb.Get(ctx, "lastFilled").Result()
+	if err != nil {
+		log.Fatal("Get lastFilled error:", err)
+	}
+
+	// Layout matching the format of your date string
+	layout := "2006-01-02T15:04:05.999999-07:00"
+	lastFilled, _ := time.Parse(layout, lastFilledCmd)
+	elapsed := now.Sub(lastFilled).Seconds()
+	fmt.Println("elapsed", elapsed)
+	rdb.IncrBy(ctx, "tokens", int64(elapsed*float64(rl.rate)))
+	tokenCmd, err := rdb.Get(ctx, "tokens").Result()
+
+	if err != nil {
+		log.Fatal("Get token error:", err)
+	}
+
+	token, _ := strconv.Atoi(tokenCmd)
+	if token > rl.capacity {
+		rdb.Set(ctx, "tokens", rl.capacity, 0)
+	}
+	rdb.Set(ctx, "lastFilled", now, 0)
+
+	if token > 0 {
+		fmt.Println("11111111111111111", token)
+		rdb.Decr(ctx, "tokens")
 		return true
 	}
+
+	// now := time.Now()
+	// elapsed := now.Sub(rl.lastFilled).Seconds()
+	// rl.tokens += int(elapsed * float64(rl.rate))
+	// if rl.tokens > rl.capacity {
+	// 	rl.tokens = rl.capacity
+	// }
+	// rl.lastFilled = now
+	//
+	// if rl.tokens > 0 {
+	// 	rl.tokens--
+	// 	return true
+	// }
 	return false
 }
 
 func RateLimiterMiddleWare(limiter RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if limiter.Allow() {
+		if limiter.Allow(c) {
 			c.Next()
 		} else {
 			c.JSON(429, gin.H{
