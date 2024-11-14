@@ -107,8 +107,8 @@ func (rl *LeakingBucket) Allow(ctx *gin.Context) bool {
 	if leaked > 0 {
 		if leaked >= int(lenBucket) {
 			// Remove all tokens if leaked tokens exceed or match bucket size
-			rdb.LTrim(ctx, "buckets", 1, 0) // effectively clears the list
-			leaked = int(lenBucket)         // adjust leaked to bucket size
+			rdb.LTrim(ctx, "buckets", 1, 0)
+			leaked = int(lenBucket)
 		} else {
 			// Trim only the leaked number of tokens
 			rdb.LTrim(ctx, "buckets", int64(leaked), -1)
