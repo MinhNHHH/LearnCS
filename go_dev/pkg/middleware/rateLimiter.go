@@ -55,6 +55,8 @@ func RateLimiterMiddleWare(limiter RateLimiter) gin.HandlerFunc {
 			ctx.JSON(429, gin.H{
 				"message": "Too many requests",
 			})
+			ctx.Abort()
+			return
 		}
 	}
 }
