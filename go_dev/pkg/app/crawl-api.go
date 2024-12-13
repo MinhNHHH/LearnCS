@@ -3,7 +3,7 @@ package app
 import (
 	"net/http"
 
-	"github.com/MinhNHHH/go_dev/pkg/crawl"
+	"github.com/MinhNHHH/go_dev/pkg/documents"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +18,7 @@ func (app *Application) GetDocumentApi() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		_, error := crawl.GetDoc(inputData.URL)
+		_, error := documents.GetDocs(inputData.URL)
 		if error != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 			return

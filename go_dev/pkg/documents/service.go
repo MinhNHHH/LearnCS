@@ -1,4 +1,4 @@
-package crawl
+package documents
 
 import (
 	"fmt"
@@ -8,7 +8,18 @@ import (
 	"golang.org/x/net/html"
 )
 
-func GetDoc(url string) (*html.Node, error) {
+type Attribute struct {
+	Namespace, Key, Val string
+}
+
+type Node struct {
+	Type     string
+	Data     string
+	Attr     []Attribute
+	Children []Node
+}
+
+func GetDocs(url string) (*html.Node, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
