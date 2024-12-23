@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserModel struct {
+type Users struct {
 	ID           uint      `gorm:"primary_key"`
 	Username     string    `gorm:"column:username"`
 	LastName     string    `gorm:"column:last_name"`
@@ -17,7 +17,7 @@ type UserModel struct {
 	UpdatedAt    time.Time `gorm:"column:updated_at"`
 }
 
-func (u *UserModel) setPassword(password string) error {
+func (u *Users) setPassword(password string) error {
 	if len(password) == 0 {
 		return fmt.Errorf("password should be not empty")
 	}
@@ -28,10 +28,17 @@ func (u *UserModel) setPassword(password string) error {
 	return nil
 }
 
-func (u *UserModel) checkPassword(password string) error {
+func (u *Users) checkPassword(password string) error {
 	bytePassword := []byte(password)
 	byteHashedPassword := []byte(u.PasswordHash)
 	return bcrypt.CompareHashAndPassword(byteHashedPassword, bytePassword)
+}
+
+func GetAllUsers(condition interface{}) (Users, error) {
+	database := db.GetDB()
+	model := Users{}
+	err := database.Where(condition).Find(&model).Error
+	return model, err
 }
 
 func SaveOne(data interface{}) error {
