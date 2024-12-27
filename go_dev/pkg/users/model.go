@@ -52,6 +52,30 @@ func SaveOne(data interface{}) error {
 	return nil
 }
 
-func UpdateRecord(data interface{}) error {
+func UpdateRecord(data interface{}, condition interface{}) error {
+	database := db.GetDB()
+	err := database.Model(&Users{}).Where(condition).Updates(data).Error
+	if err != nil {
+		return fmt.Errorf("update error: %v", err)
+	}
+	return nil
+}
+
+func DeleteRecord(condition interface{}) error {
+	database := db.GetDB()
+	model := Users{}
+	err := database.Delete(&model, condition).Error
+	if err != nil {
+		return fmt.Errorf("delete error: %v", err)
+	}
+	return nil
+}
+
+func CreateRecord(data interface{}) error {
+	database := db.GetDB()
+	err := database.Model(&Users{}).Create(data).Error
+	if err != nil {
+		return fmt.Errorf("insert error %s\n", err)
+	}
 	return nil
 }
