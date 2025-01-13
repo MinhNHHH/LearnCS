@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type MaxHeap struct {
 	array []int
 }
@@ -64,20 +62,4 @@ func (h *MaxHeap) heapifyDown(index int) {
 		h.array[index], h.array[largestIndex] = h.array[largestIndex], h.array[index]
 		index = largestIndex
 	}
-}
-
-func main() {
-	heap := NewMaxHeap()
-	heap.Insert(30)
-	heap.Insert(20)
-	heap.Insert(12)
-	heap.Insert(15)
-	heap.Insert(10)
-	heap.Insert(40)
-
-	fmt.Println("Heap array after insertion:", heap.array)
-
-	max := heap.DeleteMax()
-	fmt.Println("Max element removed from heap:", max)
-	fmt.Println("Heap array after deletion:", heap.array)
 }
