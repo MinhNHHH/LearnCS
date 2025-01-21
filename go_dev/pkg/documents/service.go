@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"golang.org/x/net/html"
 )
@@ -19,23 +20,70 @@ type Node struct {
 	Children []Node
 }
 
-func GetDocs(url string) (*html.Node, error) {
+type Queue[T any] struct {
+	Items []T
+}
+
+func (q *Queue[T]) Enqueue(item T) {
+	q.Items = append(q.Items, item)
+}
+
+func (q *Queue[T]) Dequeue() (T, error) {
+	var item T
+	if len(q.Items) == 0 {
+		return item, fmt.Errorf("queue is empty")
+	}
+
+	item = q.Items[0]
+	q.Items = q.Items[1:]
+
+	return item, nil
+}
+
+func (q *Queue[T]) IsEmpty() bool {
+	if len(q.Items) == 0 {
+		return true
+	}
+	return false
+}
+
+func (q *Queue[T]) Size() int {
+	return len(q.Items)
+}
+
+type UrlFrontier struct {
+	Queue   *Queue[string]
+	Visited map[string]bool
+	mux     sync.Mutex
+}
+
+type SeedURL struct{}
+
+type Crawler struct {
+	UrlFrontier *UrlFrontier
+	SeedUrl     SeedURL
+}
+
+func NewCrawler() *Crawler {
+	return &Crawler{
+		UrlFrontier: &UrlFrontier{
+			Visited: map[string]bool{},
+			Queue:   &Queue[string]{}},
+		SeedUrl: SeedURL{},
+	}
+}
+
+func (c *Crawler) FetchPage(url string) (*http.Response, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("getting %s: %s", url, resp.Status)
 	}
 
-	doc, err := html.Parse(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("parsing HTML: %v", err)
-	}
-
-	return doc, nil
+	return resp, nil
 }
 
 func isValidURL(rawURL string) bool {
@@ -46,21 +94,25 @@ func isValidURL(rawURL string) bool {
 	return true
 }
 
-// Visit recursively extracts links from the HTML document
-func visit(links []string, n *html.Node) []string {
-	if n == nil {
-		return links
+func (c *Crawler) ExtractLinks(resp *http.Response) error {
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		return err
 	}
-
-	if n.Type == html.ElementNode && n.Data == "a" {
-		for _, attr := range n.Attr {
-			if attr.Key == "href" && isValidURL(attr.Val) {
-				links = append(links, attr.Val)
-				break
+	var extract func(n *html.Node)
+	extract = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if isValidURL(attr.Val) && !c.UrlFrontier.Visited[attr.Val] {
+					c.UrlFrontier.Queue.Enqueue(attr.Val)
+					c.UrlFrontier.Visited[attr.Val] = true
+				}
 			}
 		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			extract(c)
+		}
 	}
-	links = visit(links, n.FirstChild)
-	links = visit(links, n.NextSibling)
-	return links
+	extract(doc)
+	return nil
 }
