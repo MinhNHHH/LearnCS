@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/MinhNHHH/go_dev/pkg/middleware"
+	"github.com/MinhNHHH/go_dev/pkg/users"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,6 +12,8 @@ func (app *Application) Routes() *gin.Engine {
 	r.Use(middleware.EnableCors())
 	r.Use(middleware.RateLimiterMiddleWare(limiter))
 
+	userGroup := r.Group("/users")
+	users.UsersRoute(userGroup)
 	apiGroups := r.Group("/api")
 	{
 		// apiGroups.Use(middleware.Authentication())
