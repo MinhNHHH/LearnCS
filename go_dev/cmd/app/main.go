@@ -22,7 +22,7 @@ func main() {
 	// application := ap.NewApplication(app.JWTSecret, app.DSN)
 	// routes := application.Routes()
 	// routes.Run(fmt.Sprintf(":%d", port))
-	seedURL := "https://www.w3schools.com/"
+	seedURL := "https://www.linkedin.com/jobs/search/?currentJobId=4122800813&geoId=104195383&keywords=golang&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON"
 	crawler := do.NewCrawler()
 	resp, err := crawler.FetchPage(seedURL)
 	if err != nil {
@@ -30,11 +30,11 @@ func main() {
 		return
 	}
 
-	err = crawler.ExtractLinks(resp)
+	job, err := crawler.JobParser.Parser(resp, seedURL)
 
 	if err != nil {
 		fmt.Println("Error extracting links:", err)
 		return
 	}
-	fmt.Println(crawler.UrlFrontier.Queue.Items)
+	fmt.Println(job)
 }

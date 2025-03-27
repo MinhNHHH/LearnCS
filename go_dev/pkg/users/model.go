@@ -71,11 +71,11 @@ func DeleteRecord(condition interface{}) error {
 	return nil
 }
 
-func CreateRecord(data interface{}) error {
-	database := db.GetDB()
-	err := database.Model(&Users{}).Create(data).Error
-	if err != nil {
-		return fmt.Errorf("insert error %s\n", err)
-	}
-	return nil
-}
+// func CreateRecord(data interface{}) error {
+// 	database := db.GetDB()
+// 	err := database.Model(&Users{}).Create(data).Error
+// 	if err != nil {
+// 		return fmt.Errorf("insert error %s\n", err)
+// 	}
+// 	return nil
+// }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"golang.org/x/net/html"
@@ -62,6 +63,27 @@ type SeedURL struct{}
 type Crawler struct {
 	UrlFrontier *UrlFrontier
 	SeedUrl     SeedURL
+	JobParser   *JobParser
+}
+type JobPosting struct {
+	URL          string
+	Title        string
+	Company      string
+	Location     string
+	Description  string
+	Salary       string
+	Requirements []string
+	PostedDate   string
+}
+
+type JobParser struct {
+	Job *JobPosting
+}
+
+func NewJobParser() *JobParser {
+	return &JobParser{
+		Job: &JobPosting{},
+	}
 }
 
 func NewCrawler() *Crawler {
@@ -69,7 +91,8 @@ func NewCrawler() *Crawler {
 		UrlFrontier: &UrlFrontier{
 			Visited: map[string]bool{},
 			Queue:   &Queue[string]{}},
-		SeedUrl: SeedURL{},
+		SeedUrl:   SeedURL{},
+		JobParser: NewJobParser(),
 	}
 }
 
@@ -94,6 +117,39 @@ func isValidURL(rawURL string) bool {
 	return true
 }
 
+func getContent(n *html.Node) {
+	if n == nil {
+		return
+	}
+
+	if n.Type == html.ElementNode && n.Data == "a" {
+		for _, attr := range n.Attr {
+			if isValidURL(attr.Val) {
+				// fmt.Println(attr.Val)
+			}
+		}
+	}
+
+	if n.Type == html.ElementNode && n.Data == "div" {
+		for _, attr := range n.Attr {
+			fmt.Println("dddd", attr.Val)
+		}
+	}
+
+	// if n.Type == html.TextNode {
+	// 	// return strings.TrimSpace(n.Data)
+	// }
+
+	// var text []string
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		getContent(c)
+		// if content := getTextContent(c); content != "" {
+		// 	text = append(text, content)
+		// }
+	}
+	// return strings.Join(text, " ")
+}
+
 func (c *Crawler) ExtractLinks(resp *http.Response) error {
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
@@ -115,4 +171,81 @@ func (c *Crawler) ExtractLinks(resp *http.Response) error {
 	}
 	extract(doc)
 	return nil
+}
+
+func (jp *JobParser) extractJobInfo(n *html.Node) {
+	if n == nil {
+		return
+	}
+
+	if n.Type == html.ElementNode {
+		switch n.Data {
+		case "a":
+			for _, attr := range n.Attr {
+				// Get company name
+				if attr.Key == "class" && strings.Contains(attr.Val, "hidden-nested-link") {
+					if n.FirstChild != nil {
+						jp.Job.Company = strings.TrimSpace(n.FirstChild.Data)
+					}
+				} else {
+					continue
+				}
+
+				if isValidURL(attr.Val) {
+					jp.Job.URL = attr.Val
+				}
+			}
+		case "span":
+			// Get location
+			for _, attr := range n.Attr {
+				if attr.Key == "class" && strings.Contains(attr.Val, "job-search-card__location") {
+					if n.FirstChild != nil {
+						jp.Job.Location = strings.TrimSpace(n.FirstChild.Data)
+					}
+				}
+			}
+		case "h3":
+			// Get title
+			for _, attr := range n.Attr {
+				if attr.Key == "class" && strings.Contains(attr.Val, "base-search-card__title") {
+					jp.Job.Title = strings.TrimSpace(n.FirstChild.Data)
+				}
+			}
+		case "time":
+			// Get posted date
+			for _, attr := range n.Attr {
+				if attr.Key == "datetime" {
+					jp.Job.PostedDate = strings.TrimSpace(attr.Val)
+				}
+			}
+		case "div":
+			for _, attr := range n.Attr {
+				if n.FirstChild != nil {
+					fmt.Println(strings.TrimSpace(n.FirstChild.Data), "===========", attr.Key, "================", attr.Val)
+					// jp.Job.Description = strings.TrimSpace(n.FirstChild.Data)
+				}
+
+				if attr.Key == "class" && strings.Contains(attr.Val, "job-description") {
+					// Get description
+				}
+			}
+		}
+
+	}
+
+	// Continue traversing the DOM tree
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		jp.extractJobInfo(c)
+	}
+}
+func (jp *JobParser) Parser(resp *http.Response, url string) (*JobPosting, error) {
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	jp.extractJobInfo(doc)
+	return jp.Job, nil
 }
